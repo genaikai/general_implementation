@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# 부록 A 를 scripts/sync.sh 와 동기화하고, 바뀌었으면 이번 커밋에 포함시킨다.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+before=$(git hash-object IMPLEMENTATION_SPEC.md)
+python3 scripts/sync_appendix.py >/dev/null
+after=$(git hash-object IMPLEMENTATION_SPEC.md)
+if [[ "$before" != "$after" ]]; then
+  git add IMPLEMENTATION_SPEC.md
+  echo "[pre-commit] 부록 A 를 scripts/sync.sh 에 맞춰 갱신하고 스테이징했습니다"
+fi

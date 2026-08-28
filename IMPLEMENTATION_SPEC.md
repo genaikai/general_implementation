@@ -248,6 +248,10 @@ status    : OK
 
 ## 부록 A. `scripts/sync.sh`
 
+아래는 `scripts/sync.sh` 전문이며 pre-commit 훅이 자동으로 동기화한다.
+저장소를 clone 한 뒤 한 번만 `git config core.hooksPath scripts/hooks` 를 실행해두면 된다.
+
+<!-- BEGIN sync.sh -->
 ```bash
 #!/usr/bin/env bash
 #
@@ -362,3 +366,4 @@ EOF
 
 main "$@"
 ```
+<!-- END sync.sh -->
