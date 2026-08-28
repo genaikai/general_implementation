@@ -4,9 +4,13 @@
 
 | 기호 | 의미 |
 |---|---|
-| **BB** | 본 머신의 저장소. 로직의 단일 진실 원본 |
-| **AA** | 사내 머신의 작업 폴더. 사내 git으로 관리됨 |
-| `<pkg>` | BB가 제공하는 패키지 이름 (프로젝트마다 고유하게) |
+| `{BB}` | 본 머신의 저장소. 로직의 단일 진실 원본 |
+| `{AA}` | 사내 머신의 작업 폴더. 사내 git으로 관리됨 |
+| `<pkg>` | `{BB}`가 제공하는 패키지 이름 (프로젝트마다 고유하게) |
+
+세 이름 모두 프로젝트마다 다른 실제 문자열이며, 경로로 등장할 때 `{AA}`·`{BB}`로 적는다.
+`sync.sh`는 `{BB}`를 자기 위치(`{AA}/.staging/{BB}/scripts/sync.sh`)에서 유도하고 `{AA}`는
+실행 위치이므로, **어느 쪽도 설정하거나 수정할 필요가 없다.**
 
 ```
 [본 머신] 구현 ──이식──▶ [사내] 실험 ──인사이트──▶ [본 머신] 개선 ──▶ …
@@ -75,7 +79,7 @@ C2 때문에 사내에서는 한 줄도 못 고친다. 아래는 코드에 박�
 - 컬럼명·테이블명·도메인 코드값 → 계약으로
 - 임계값·하이퍼파라미터·날짜 범위·샘플 수·워커 수
 
-`configs/example.yaml`(커밋)에 모든 키가 등장하고, 사내 실값은 `AA/configs/local.yaml`에 둔다.
+`configs/example.yaml`(커밋)에 모든 키가 등장하고, 사내 실값은 `{AA}/configs/local.yaml`에 둔다.
 설정은 시작 즉시 검증하고 누락 시 **계산 전에** 죽는다 — 30분 뒤에 키 하나로 죽으면 사이클 하나를 버린다.
 
 > **사내에서 "코드 한 줄만 고치면 되는데" 하는 순간이 오면, 그건 이 규칙이 이미 깨졌다는 신호다.**
@@ -88,32 +92,32 @@ C2 때문에 사내에서는 한 줄도 못 고친다. 아래는 코드에 박�
 ### 2.1 배치
 
 ```
-BB/                       AA/
-  pyproject.toml            BB/                  ← BB 소스 사본. .git 없음. 통째 교체
-  requirements.txt          configs/local.yaml   ← 사내 실값
-  configs/example.yaml      outputs/             ← 산출물
-  scripts/sync.sh           notebooks/           ← 사내 탐색
-  src/<pkg>/                .staging/BB/         ← 이식 중계 clone (AA에서 무시)
-  tests/                    .staging/.gitignore  ← 내용은 `*` 한 줄
+{BB}/                      {AA}/
+  pyproject.toml             {BB}/                 ← 소스 사본. .git 없음. 통째 교체
+  requirements.txt           configs/local.yaml    ← 사내 실값
+  configs/example.yaml       outputs/              ← 산출물
+  scripts/sync.sh            notebooks/            ← 사내 탐색
+  src/<pkg>/                 .staging/{BB}/        ← 이식 중계 clone (무시됨)
+  tests/                     .staging/.gitignore   ← 내용은 `*` 한 줄
 ```
 
-**사내 자산은 `AA/BB` 밖에 둔다.** `AA/BB`는 갱신 때마다 삭제·재생성되므로 안에 두면 사라진다.
+**사내 자산은 `{AA}/{BB}` 밖에 둔다.** `{AA}/{BB}`는 갱신 때마다 삭제·재생성되므로 안에 두면 사라진다.
 
 ### 2.2 절차
 
 clone 한 번, 그 다음부터는 스크립트 한 줄이다. 최초든 갱신이든 같은 명령이고 멱등하다.
 
 ```bash
-cd AA
-git clone <BB-remote> .staging/BB        # 최초 1회만
-bash .staging/BB/scripts/sync.sh v0.2    # 매번
+cd {AA}
+git clone <remote> .staging/{BB}           # 최초 1회만
+bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
 ```
 
 `sync.sh`가 하는 일 (전문은 **부록 A**):
 
-1. `.staging/.gitignore`(`*`)와 AA `.gitignore`의 `.staging/` 항목을 보장한다
+1. `.staging/.gitignore`(`*`)와 `{AA}`의 `.gitignore`의 `.staging/` 항목을 보장한다
 2. 태그를 fetch·checkout 한다. 태그가 없으면 목록을 보여주고 중단한다 — 태그 없이 실행하지 않는다
-3. `AA/BB`를 `git archive`로 통째 교체하고 `BB/VERSION`을 기록한다
+3. `{AA}/{BB}`를 `git archive`로 통째 교체하고 `{BB}/VERSION`을 기록한다
 4. `configs/`·`outputs/`·`notebooks/`를 만든다
 5. `configs/local.yaml`이 **없을 때만** `example.yaml`을 복사한다. 있으면 손대지 않고,
    **example 에만 있는 키를 경고**한다 — 본 머신에서 늘어난 설정 키를 사내가 모르고 지나가면
@@ -128,15 +132,15 @@ bash .staging/BB/scripts/sync.sh v0.2    # 매번
 
 1. **`.git`이 결과물에 없다** — 외부 원격 주소도 히스토리도 AA로 넘어가지 않는다 (C6)
 2. **추적된 파일만 나온다** — 데이터·산출물·로컬 설정이 넘어갈 경로가 원천적으로 없다
-3. **`AA/BB`에 git이 없으니 사내에서 고칠 수 없다** — C2가 규칙이 아니라 물리적 상태가 된다
+3. **`{AA}/{BB}`에 git이 없으니 사내에서 고칠 수 없다** — C2가 규칙이 아니라 물리적 상태가 된다
 
-`AA/BB`가 사내 저장소에 커밋되는 것은 목적이다. 결과 파일이 반출 안 되는 상황에서
+`{AA}/{BB}`가 사내 저장소에 커밋되는 것은 목적이다. 결과 파일이 반출 안 되는 상황에서
 "어떤 코드로 돌렸는지"가 사내에 남는 유일한 형태다. 그래서 **태그 없이 실행하지 않는다.**
 
-> AA를 zip이나 파일 복사로 외부에 전달하는 절차가 있다면, 중계 clone을 AA 밖(`~/src/BB`)으로 옮긴다.
+> AA를 zip이나 파일 복사로 외부에 전달하는 절차가 있다면, 중계 clone을 AA 밖(`~/src/{BB}`)으로 옮긴다.
 > git은 중첩 저장소 내부를 추적하지 않지만 zip·백업 도구는 `.git`을 통째로 가져간다.
 
-### 2.3 `.gitignore` (BB) — 부록이 아니라 조항이다
+### 2.3 `{BB}`의 `.gitignore` — 부록이 아니라 조항이다
 
 ```gitignore
 *.csv
@@ -176,14 +180,14 @@ git ls-files | grep -E '\.(csv|tsv|parquet|xlsx|pkl|npy|npz|h5|feather|sqlite)$|
 
 ```bash
 source <기존 venv>/bin/activate
-pip install --dry-run -r BB/requirements.txt && pip check   # 충돌 먼저 확인
-pip install -r BB/requirements.txt
-PYTHONPATH=BB/src python -m <pkg> --config configs/local.yaml --dry-run   # 합성 데이터 스모크
-PYTHONPATH=BB/src python -m <pkg> --config configs/local.yaml
+pip install --dry-run -r {BB}/requirements.txt && pip check   # 충돌 먼저 확인
+pip install -r {BB}/requirements.txt
+PYTHONPATH={BB}/src python -m <pkg> --config configs/local.yaml --dry-run   # 합성 데이터 스모크
+PYTHONPATH={BB}/src python -m <pkg> --config configs/local.yaml
 ```
 
 - **BB 패키지를 venv에 설치하지 않는다.** `PYTHONPATH`로만 붙인다 — 공용 venv를 오염시키지 않고,
-  `AA/BB` 통째 교체가 무연산이 된다
+  `{AA}/{BB}` 통째 교체가 무연산이 된다
 - **`--upgrade`·`--force-reinstall` 금지.** 남의 환경을 조용히 깨뜨리고 되돌릴 수 없다.
   충돌은 인사이트로 가지고 나와 본 머신에서 `requirements.txt`를 고친다
 - 본 머신도 Python 3.14를 쓴다 — 3.14 wheel이 없는 패키지를 미리 거르기 위함
@@ -210,7 +214,7 @@ status    : OK
   이 규격에서 결함이다 — 옮겨 적을 것이 없기 때문이다. 이 출력이 포맷 회수의 주 채널이다
 - 한 줄에 한 항목, 80자 이내. 지표 이름은 사이클 사이에 바뀌지 않는다
 - 실데이터의 개별 값·식별자는 찍지 않는다 (C3)
-- 노트북 탐색은 자유롭되 `AA/notebooks/`에 두고, **로직은 노트북에 살지 않는다.**
+- 노트북 탐색은 자유롭되 `{AA}/notebooks/`에 두고, **로직은 노트북에 살지 않는다.**
   노트북은 반출되지 않으므로 그 사이클이 끝나면 사라진다
 
 ---
@@ -218,7 +222,7 @@ status    : OK
 ## 4. 되돌리기
 
 사람 머릿속을 거치는 유일한 고리라 가장 잘 샌다. **실험 직후**,
-`BB/docs/insights/YYYY-MM-DD-<tag>.md`에 적는다.
+`{BB}/docs/insights/YYYY-MM-DD-<tag>.md`에 적는다.
 
 기록할 것 → 반영할 곳:
 
@@ -236,9 +240,9 @@ status    : OK
 
 ## 하지 말 것
 
-1. 사내에서 `AA/BB` 코드 수정
+1. 사내에서 `{AA}/{BB}` 코드 수정
 2. BB에 데이터 파일 커밋 (테스트 픽스처 포함)
-3. `AA/BB`에 `.git` 두기 / `AA/BB` 안에 사내 설정·노트북 두기
+3. `{AA}/{BB}`에 `.git` 두기 / `{AA}/{BB}` 안에 사내 설정·노트북 두기
 4. 태그 없이 사내에서 실행
 5. 사내에서 `pip --upgrade` / BB 패키지를 venv에 설치
 6. 리포트에 실데이터 값 찍기
@@ -257,7 +261,10 @@ status    : OK
 #
 # BB → AA 이식 스크립트. **AA 루트에서** 실행한다.
 #
-#   bash .staging/BB/scripts/sync.sh <tag>
+#   bash .staging/{BB}/scripts/sync.sh <tag>
+#
+# {AA}·{BB} 의 실제 이름은 프로젝트마다 다르다. {BB} 는 이 스크립트의 위치에서 유도하고
+# ({AA}/.staging/{BB}/scripts/sync.sh), {AA} 는 실행 위치(cwd)라 이름이 필요 없다.
 #
 # 최초 1회든 갱신이든 같은 명령이며, 몇 번을 돌려도 같은 상태가 된다.
 # 이 스크립트는 실행 도중 checkout 으로 자기 자신을 바꾸므로, 본문 전체를
@@ -265,8 +272,11 @@ status    : OK
 
 set -euo pipefail
 
-STAGING=".staging/BB"
-DEST="BB"
+SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)   # {AA}/.staging/{BB}/scripts
+REPO_DIR=$(dirname "$SELF_DIR")                             # {AA}/.staging/{BB}
+NAME=$(basename "$REPO_DIR")                                # {BB}
+STAGING=".staging/$NAME"
+DEST="$NAME"
 DATA_EXT='csv|tsv|parquet|xlsx|xls|pkl|pickle|npy|npz|h5|feather|sqlite'
 
 log()  { printf '[sync] %s\n' "$*"; }
@@ -298,7 +308,9 @@ yaml_keys() {
 main() {
   local tag="${1:-}"
   [[ -n "$tag" ]] || die "태그를 지정하세요:  bash $STAGING/scripts/sync.sh <tag>"
-  [[ -d "$STAGING/.git" ]] || die "AA 루트에서 실행하세요 ($STAGING 이 없습니다)"
+  [[ "$REPO_DIR" == "$(pwd -P)/.staging/$NAME" ]] || die \
+    "AA 루트에서 실행하세요. 기대 위치: <AA>/.staging/$NAME/scripts/sync.sh, 현재 cwd: $(pwd -P)"
+  [[ -d "$STAGING/.git" ]] || die "$STAGING 이 clone 이 아닙니다 (.git 없음)"
 
   # 1. 안전장치 — 커밋보다 먼저 깔아둔다
   [[ -f .staging/.gitignore ]] || printf '*\n' > .staging/.gitignore
@@ -355,12 +367,16 @@ main() {
   fi
   log "leak check: OK"
 
+  # 안내 문구용 패키지 이름 — src/ 아래 디렉터리가 하나면 그것으로 본다
+  local pkg="<pkg>" cands=("$DEST"/src/*/)
+  [[ ${#cands[@]} -eq 1 && -d "${cands[0]}" ]] && pkg=$(basename "${cands[0]}")
+
   cat <<EOF
 
 next:
   source <venv>/bin/activate
   pip install --dry-run -r $DEST/requirements.txt && pip check
-  PYTHONPATH=$DEST/src python -m <pkg> --config configs/local.yaml --dry-run
+  PYTHONPATH=$DEST/src python -m $pkg --config configs/local.yaml --dry-run
 EOF
 }
 
