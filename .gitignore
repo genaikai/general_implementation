@@ -1,0 +1,4 @@
+.omc/
+__pycache__/
+*.py[cod]
+.venv/
