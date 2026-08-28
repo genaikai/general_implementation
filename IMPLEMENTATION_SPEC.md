@@ -71,19 +71,26 @@ C6 때문이다. 가짜 데이터가 파일로 BB에 있으면 AA를 통해 사�
 가짜 데이터가 보증하는 것은 "코드가 끝까지 돈다"까지다. 실제 분포에서의 성능,
 실규모에서의 메모리·시간, 계약이 실데이터를 맞게 기술하는지는 **사내에서만 알 수 있다.**
 
-### 1.3 바뀔 만한 값은 전부 설정으로
+### 1.3 바뀔 만한 값은 전부 코드 밖으로
 
-C2 때문에 사내에서는 한 줄도 못 고친다. 아래는 코드에 박지 않는다.
+C2 때문에 사내에서는 한 줄도 못 고친다. 아래는 코드에 박지 않고 **CLI 인자로 받는다.**
 
 - 파일·디렉터리 경로, 접속 정보
 - 컬럼명·테이블명·도메인 코드값 → 계약으로
 - 임계값·하이퍼파라미터·날짜 범위·샘플 수·워커 수
 
-`configs/example.yaml`(커밋)에 모든 키가 등장하고, 사내 실값은 `{AA}/configs/local.yaml`에 둔다.
-설정은 시작 즉시 검증하고 누락 시 **계산 전에** 죽는다 — 30분 뒤에 키 하나로 죽으면 사이클 하나를 버린다.
+```bash
+python {BB}/src/run.py --data /mnt/real/2026-08.parquet --threshold 0.5
+```
+
+`argparse`로 받고, 필수 인자가 빠지면 **어떤 계산도 하기 전에** 죽는다 — 30분 돌린 뒤
+인자 하나 때문에 죽으면 사이클 하나를 통째로 버린다.
+
+인자가 열 개를 넘어 명령줄이 길어지면 그때 설정 파일(`--config`)을 얹어도 늦지 않다.
+미리 만들 이유는 없다.
 
 > **사내에서 "코드 한 줄만 고치면 되는데" 하는 순간이 오면, 그건 이 규칙이 이미 깨졌다는 신호다.**
-> 고치지 말고 "이 값이 설정에 없었다"를 인사이트로 가지고 나온다.
+> 고치지 말고 "이 값이 인자에 없었다"를 인사이트로 가지고 나온다.
 
 ---
 
@@ -93,10 +100,9 @@ C2 때문에 사내에서는 한 줄도 못 고친다. 아래는 코드에 박�
 
 ```
 {BB}/                      {AA}/
-  pyproject.toml             {BB}/                 ← 소스 사본. .git 없음. 통째 교체
-  requirements.txt           configs/local.yaml    ← 사내 실값
-  configs/example.yaml       outputs/              ← 산출물
-  scripts/sync.sh            notebooks/            ← 사내 탐색
+  requirements.txt           {BB}/                 ← 소스 사본. .git 없음. 통째 교체
+  scripts/sync.sh            outputs/              ← 산출물
+  src/run.py                 notebooks/            ← 사내 탐색
   src/<pkg>/                 .staging/{BB}/        ← 이식 중계 clone (무시됨)
   tests/                     .staging/.gitignore   ← 내용은 `*` 한 줄
 ```
@@ -118,10 +124,10 @@ bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
 1. `.staging/.gitignore`(`*`)와 `{AA}`의 `.gitignore`의 `.staging/` 항목을 보장한다
 2. 태그를 fetch·checkout 한다. 태그가 없으면 목록을 보여주고 중단한다 — 태그 없이 실행하지 않는다
 3. `{AA}/{BB}`를 `git archive`로 통째 교체하고 `{BB}/VERSION`을 기록한다
-4. `configs/`·`outputs/`·`notebooks/`를 만든다
-5. `configs/local.yaml`이 **없을 때만** `example.yaml`을 복사한다. 있으면 손대지 않고,
-   **example 에만 있는 키를 경고**한다 — 본 머신에서 늘어난 설정 키를 사내가 모르고 지나가면
-   조기 실패로 죽거나, 더 나쁘게는 기본값으로 조용히 돌아간다
+4. `outputs/`·`notebooks/`를 만든다
+5. 설정 파일을 쓰는 프로젝트라면(`{BB}/configs/example.yaml` 존재) `configs/local.yaml`을
+   **없을 때만** 복사한다. 있으면 손대지 않고 **example 에만 있는 키를 경고**한다.
+   CLI 인자만 쓰는 프로젝트에서는 이 단계를 건너뛴다
 6. 유출 점검: `.git` 부재, 데이터 확장자 0개. 걸리면 **사본을 지우고** 실패로 끝낸다
 7. 다음에 실행할 명령을 출력한다
 
@@ -182,12 +188,21 @@ git ls-files | grep -E '\.(csv|tsv|parquet|xlsx|pkl|npy|npz|h5|feather|sqlite)$|
 source <기존 venv>/bin/activate
 pip install --dry-run -r {BB}/requirements.txt && pip check   # 충돌 먼저 확인
 pip install -r {BB}/requirements.txt
-PYTHONPATH={BB}/src python -m <pkg> --config configs/local.yaml --dry-run   # 합성 데이터 스모크
-PYTHONPATH={BB}/src python -m <pkg> --config configs/local.yaml
+
+python {BB}/src/run.py --dry-run                        # ① 합성 데이터 스모크
+python {BB}/src/run.py --data <실데이터> --limit 1000    # ② 계약 확인
+python {BB}/src/run.py --data <실데이터>                 # ③ 전체
 ```
 
-- **BB 패키지를 venv에 설치하지 않는다.** `PYTHONPATH`로만 붙인다 — 공용 venv를 오염시키지 않고,
+①에서 실패하면 환경 문제고, ②에서 나오는 계약 위반이 첫 사이클의 실제 수확이다.
+계약이 깨끗해진 뒤에 ③으로 간다 — 틀린 계약 위에서 뽑은 성능 숫자는 믿을 수 없다.
+
+- **`PYTHONPATH`도 설치도 필요 없다.** `python {BB}/src/run.py`는 `sys.path[0]`을 `{BB}/src`로
+  잡으므로 `<pkg>`가 그대로 import된다. 공용 venv에 우리 패키지를 남기지 않고,
   `{AA}/{BB}` 통째 교체가 무연산이 된다
+- 진입점만 `src/run.py`로 두고 나머지는 `src/<pkg>/` 안에 넣는다. `src/`를 평평하게 쓰면
+  `contracts`·`report` 같은 흔한 이름이 최상위 모듈이 되어 서드파티를 가릴 수 있다
+- 상대 경로는 전부 **cwd(`{AA}`) 기준**으로 해석된다 — `{BB}`가 어디 있든 `outputs/`가 맞아떨어진다
 - **`--upgrade`·`--force-reinstall` 금지.** 남의 환경을 조용히 깨뜨리고 되돌릴 수 없다.
   충돌은 인사이트로 가지고 나와 본 머신에서 `requirements.txt`를 고친다
 - 본 머신도 Python 3.14를 쓴다 — 3.14 wheel이 없는 패키지를 미리 거르기 위함
@@ -199,6 +214,7 @@ C4에 의해 화면이 유일한 출력이다. 성공·실패 무관하게 마�
 ```
 ================ RUN SUMMARY ================
 version   : v0.4 (a1b2c3d)
+args      : --data /mnt/real/2026-08.parquet --threshold 0.5 --limit 1000
 input     : 1,204,331 rows x 27 cols
 contract  : 24 ok / 3 MISMATCH
   - grade      : unexpected values {'Z', '?'}
@@ -210,6 +226,8 @@ status    : OK
 =============================================
 ```
 
+- **실행 인자를 그대로 한 줄 찍는다.** 반출이 안 되므로 "그때 뭘로 돌렸는지"가 셸 히스토리에만
+  남으면 사라진다. 이 한 줄만 옮겨 적으면 재현된다
 - **계약 위반은 사람이 그대로 옮겨 적을 수 있게 적는다.** `validation failed` 같은 메시지는
   이 규격에서 결함이다 — 옮겨 적을 것이 없기 때문이다. 이 출력이 포맷 회수의 주 채널이다
 - 한 줄에 한 항목, 80자 이내. 지표 이름은 사이클 사이에 바뀌지 않는다
@@ -338,17 +356,17 @@ main() {
   log "$DEST/ replaced ($(find "$DEST" -type f | wc -l | tr -d ' ') files, no .git)"
 
   # 4. 사내 자산 자리 — DEST 밖이어야 갱신에 살아남는다
-  mkdir -p configs outputs notebooks
+  mkdir -p outputs notebooks
 
-  # 5. 사내 설정 — 있으면 절대 건드리지 않는다
+  # 5. 사내 설정 — 설정 파일을 쓰는 프로젝트에서만. 있으면 절대 건드리지 않는다
   local ex="$DEST/configs/example.yaml"
-  if [[ ! -f configs/local.yaml ]]; then
-    [[ -f "$ex" ]] || die "$ex 이 없습니다"
-    cp "$ex" configs/local.yaml
-    log "configs/local.yaml 생성 — 사내 실값을 채우세요"
-  else
-    log "configs/local.yaml exists — kept"
-    if [[ -f "$ex" ]]; then
+  if [[ -f "$ex" ]]; then
+    mkdir -p configs
+    if [[ ! -f configs/local.yaml ]]; then
+      cp "$ex" configs/local.yaml
+      log "configs/local.yaml 생성 — 사내 실값을 채우세요"
+    else
+      log "configs/local.yaml exists — kept"
       local missing
       missing=$(comm -23 <(yaml_keys "$ex") <(yaml_keys configs/local.yaml) | tr '\n' ' ')
       missing="${missing%"${missing##*[! ]}"}"
@@ -367,16 +385,19 @@ main() {
   fi
   log "leak check: OK"
 
-  # 안내 문구용 패키지 이름 — src/ 아래 디렉터리가 하나면 그것으로 본다
-  local pkg="<pkg>" cands=("$DEST"/src/*/)
-  [[ ${#cands[@]} -eq 1 && -d "${cands[0]}" ]] && pkg=$(basename "${cands[0]}")
+  # 안내 문구용 진입점 — src/run.py 를 우선하고, 없으면 src/ 의 유일한 .py 를 쓴다
+  local entry="$DEST/src/run.py"
+  if [[ ! -f "$entry" ]]; then
+    local pys=("$DEST"/src/*.py)
+    if [[ ${#pys[@]} -eq 1 && -f "${pys[0]}" ]]; then entry="${pys[0]}"; else entry="$DEST/src/<entry>.py"; fi
+  fi
 
   cat <<EOF
 
 next:
   source <venv>/bin/activate
   pip install --dry-run -r $DEST/requirements.txt && pip check
-  PYTHONPATH=$DEST/src python -m $pkg --config configs/local.yaml --dry-run
+  python $entry --dry-run
 EOF
 }
 

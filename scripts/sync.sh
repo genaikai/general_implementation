@@ -79,17 +79,17 @@ main() {
   log "$DEST/ replaced ($(find "$DEST" -type f | wc -l | tr -d ' ') files, no .git)"
 
   # 4. 사내 자산 자리 — DEST 밖이어야 갱신에 살아남는다
-  mkdir -p configs outputs notebooks
+  mkdir -p outputs notebooks
 
-  # 5. 사내 설정 — 있으면 절대 건드리지 않는다
+  # 5. 사내 설정 — 설정 파일을 쓰는 프로젝트에서만. 있으면 절대 건드리지 않는다
   local ex="$DEST/configs/example.yaml"
-  if [[ ! -f configs/local.yaml ]]; then
-    [[ -f "$ex" ]] || die "$ex 이 없습니다"
-    cp "$ex" configs/local.yaml
-    log "configs/local.yaml 생성 — 사내 실값을 채우세요"
-  else
-    log "configs/local.yaml exists — kept"
-    if [[ -f "$ex" ]]; then
+  if [[ -f "$ex" ]]; then
+    mkdir -p configs
+    if [[ ! -f configs/local.yaml ]]; then
+      cp "$ex" configs/local.yaml
+      log "configs/local.yaml 생성 — 사내 실값을 채우세요"
+    else
+      log "configs/local.yaml exists — kept"
       local missing
       missing=$(comm -23 <(yaml_keys "$ex") <(yaml_keys configs/local.yaml) | tr '\n' ' ')
       missing="${missing%"${missing##*[! ]}"}"
@@ -108,16 +108,19 @@ main() {
   fi
   log "leak check: OK"
 
-  # 안내 문구용 패키지 이름 — src/ 아래 디렉터리가 하나면 그것으로 본다
-  local pkg="<pkg>" cands=("$DEST"/src/*/)
-  [[ ${#cands[@]} -eq 1 && -d "${cands[0]}" ]] && pkg=$(basename "${cands[0]}")
+  # 안내 문구용 진입점 — src/run.py 를 우선하고, 없으면 src/ 의 유일한 .py 를 쓴다
+  local entry="$DEST/src/run.py"
+  if [[ ! -f "$entry" ]]; then
+    local pys=("$DEST"/src/*.py)
+    if [[ ${#pys[@]} -eq 1 && -f "${pys[0]}" ]]; then entry="${pys[0]}"; else entry="$DEST/src/<entry>.py"; fi
+  fi
 
   cat <<EOF
 
 next:
   source <venv>/bin/activate
   pip install --dry-run -r $DEST/requirements.txt && pip check
-  PYTHONPATH=$DEST/src python -m $pkg --config configs/local.yaml --dry-run
+  python $entry --dry-run
 EOF
 }
 
