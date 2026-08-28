@@ -101,16 +101,28 @@ BB/                       AA/
 
 ### 2.2 절차
 
-```bash
-# 최초 1회
-cd AA && git clone <BB-remote> .staging/BB && printf '*\n' > .staging/.gitignore
+clone 한 번, 그 다음부터는 스크립트 한 줄이다. 최초든 갱신이든 같은 명령이고 멱등하다.
 
-# 갱신 (= 사내에서의 "pull") — scripts/sync.sh 가 담고 있다
-git -C .staging/BB fetch --tags && git -C .staging/BB checkout <tag>
-rm -rf BB && mkdir BB
-git -C .staging/BB archive <tag> | tar -x -C BB
-git -C .staging/BB rev-parse --short HEAD > BB/VERSION
+```bash
+cd AA
+git clone <BB-remote> .staging/BB        # 최초 1회만
+bash .staging/BB/scripts/sync.sh v0.2    # 매번
 ```
+
+`sync.sh`가 하는 일 (전문은 **부록 A**):
+
+1. `.staging/.gitignore`(`*`)와 AA `.gitignore`의 `.staging/` 항목을 보장한다
+2. 태그를 fetch·checkout 한다. 태그가 없으면 목록을 보여주고 중단한다 — 태그 없이 실행하지 않는다
+3. `AA/BB`를 `git archive`로 통째 교체하고 `BB/VERSION`을 기록한다
+4. `configs/`·`outputs/`·`notebooks/`를 만든다
+5. `configs/local.yaml`이 **없을 때만** `example.yaml`을 복사한다. 있으면 손대지 않고,
+   **example 에만 있는 키를 경고**한다 — 본 머신에서 늘어난 설정 키를 사내가 모르고 지나가면
+   조기 실패로 죽거나, 더 나쁘게는 기본값으로 조용히 돌아간다
+6. 유출 점검: `.git` 부재, 데이터 확장자 0개. 걸리면 **사본을 지우고** 실패로 끝낸다
+7. 다음에 실행할 명령을 출력한다
+
+**일부러 하지 않는 일** — `pip install`(공용 venv라 사람이 `--dry-run`을 보고 판단해야 한다),
+`local.yaml` 덮어쓰기(사내 실값이 든 유일한 파일), venv 생성, git commit.
 
 `git archive`를 쓰는 이유가 세 겹으로 맞물린다.
 
@@ -231,3 +243,122 @@ status    : OK
 5. 사내에서 `pip --upgrade` / BB 패키지를 venv에 설치
 6. 리포트에 실데이터 값 찍기
 7. 사내 탐색을 인사이트 기록 없이 끝내기
+
+---
+
+## 부록 A. `scripts/sync.sh`
+
+```bash
+#!/usr/bin/env bash
+#
+# BB → AA 이식 스크립트. **AA 루트에서** 실행한다.
+#
+#   bash .staging/BB/scripts/sync.sh <tag>
+#
+# 최초 1회든 갱신이든 같은 명령이며, 몇 번을 돌려도 같은 상태가 된다.
+# 이 스크립트는 실행 도중 checkout 으로 자기 자신을 바꾸므로, 본문 전체를
+# main() 으로 감싸 파싱이 먼저 끝나게 한다. (bash 는 스크립트를 조금씩 읽어가며 실행한다)
+
+set -euo pipefail
+
+STAGING=".staging/BB"
+DEST="BB"
+DATA_EXT='csv|tsv|parquet|xlsx|xls|pkl|pickle|npy|npz|h5|feather|sqlite'
+
+log()  { printf '[sync] %s\n' "$*"; }
+warn() { printf '[sync] ⚠ %s\n' "$*" >&2; }
+die()  { printf '[sync] ✗ %s\n' "$*" >&2; exit 1; }
+
+# YAML 의 키를 점 경로로 뽑는다. 2칸 들여쓰기 매핑을 가정하며, 새 키 알림 용도의 근사치다.
+yaml_keys() {
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*-/ { next }
+    {
+      line = $0
+      match(line, /^[[:space:]]*/); indent = RLENGTH
+      sub(/^[[:space:]]*/, "", line)
+      if (line ~ /^[A-Za-z0-9_.-]+[[:space:]]*:/) {
+        key = line; sub(/[[:space:]]*:.*/, "", key)
+        lvl = int(indent / 2)
+        path[lvl] = key
+        out = path[0]
+        for (i = 1; i <= lvl; i++) out = out "." path[i]
+        print out
+      }
+    }
+  ' "$1" | sort -u
+}
+
+main() {
+  local tag="${1:-}"
+  [[ -n "$tag" ]] || die "태그를 지정하세요:  bash $STAGING/scripts/sync.sh <tag>"
+  [[ -d "$STAGING/.git" ]] || die "AA 루트에서 실행하세요 ($STAGING 이 없습니다)"
+
+  # 1. 안전장치 — 커밋보다 먼저 깔아둔다
+  [[ -f .staging/.gitignore ]] || printf '*\n' > .staging/.gitignore
+  if [[ ! -f .gitignore ]] || ! grep -qx '\.staging/' .gitignore; then
+    printf '.staging/\n' >> .gitignore
+    log "AA/.gitignore 에 .staging/ 추가"
+  fi
+
+  # 2. 태그 확보 — 태그 없이는 실행하지 않는다
+  git -C "$STAGING" fetch --tags --quiet
+  if ! git -C "$STAGING" rev-parse -q --verify "refs/tags/$tag^{}" >/dev/null; then
+    warn "태그 '$tag' 가 없습니다. 사용 가능한 태그:"
+    git -C "$STAGING" tag -l >&2
+    exit 1
+  fi
+  git -C "$STAGING" -c advice.detachedHead=false checkout --quiet "$tag"
+  local sha; sha=$(git -C "$STAGING" rev-parse --short HEAD)
+
+  # 3. 실행 사본 통째 교체
+  [[ ! -e "$DEST/.git" ]] || die "$DEST 에 .git 이 있습니다. clone 인지 확인하고 직접 정리하세요 (자동 삭제하지 않습니다)"
+  rm -rf "$DEST"; mkdir -p "$DEST"
+  git -C "$STAGING" archive "$tag" | tar -x -C "$DEST"
+  printf '%s %s\n' "$tag" "$sha" > "$DEST/VERSION"
+  log "tag $tag ($sha)"
+  log "$DEST/ replaced ($(find "$DEST" -type f | wc -l | tr -d ' ') files, no .git)"
+
+  # 4. 사내 자산 자리 — DEST 밖이어야 갱신에 살아남는다
+  mkdir -p configs outputs notebooks
+
+  # 5. 사내 설정 — 있으면 절대 건드리지 않는다
+  local ex="$DEST/configs/example.yaml"
+  if [[ ! -f configs/local.yaml ]]; then
+    [[ -f "$ex" ]] || die "$ex 이 없습니다"
+    cp "$ex" configs/local.yaml
+    log "configs/local.yaml 생성 — 사내 실값을 채우세요"
+  else
+    log "configs/local.yaml exists — kept"
+    if [[ -f "$ex" ]]; then
+      local missing
+      missing=$(comm -23 <(yaml_keys "$ex") <(yaml_keys configs/local.yaml) | tr '\n' ' ')
+      missing="${missing%"${missing##*[! ]}"}"
+      [[ -z "$missing" ]] || warn "example.yaml 에만 있는 키: $missing"
+    fi
+  fi
+
+  # 6. 유출 점검 — 하나라도 걸리면 실패로 끝낸다
+  [[ ! -e "$DEST/.git" ]] || die "leak check: $DEST/.git 이 존재합니다"
+  local leaked
+  leaked=$(find "$DEST" -type f | grep -Ei "\.($DATA_EXT)\$" || true)
+  if [[ -n "$leaked" ]]; then
+    warn "데이터 파일이 사본에 있습니다:"; printf '%s\n' "$leaked" >&2
+    rm -rf "$DEST"   # 실수로 커밋되는 것을 막기 위해 사본을 남기지 않는다
+    die "leak check FAILED — $DEST 를 제거했습니다. BB 의 .gitignore 를 고치고 새 태그를 내세요"
+  fi
+  log "leak check: OK"
+
+  cat <<EOF
+
+next:
+  source <venv>/bin/activate
+  pip install --dry-run -r $DEST/requirements.txt && pip check
+  PYTHONPATH=$DEST/src python -m <pkg> --config configs/local.yaml --dry-run
+EOF
+}
+
+main "$@"
+```
