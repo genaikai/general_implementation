@@ -148,6 +148,11 @@ sync_into_aa() {
   local sha; sha=$(git -C "$STAGING" rev-parse --short HEAD)
 
   [[ ! -e "$DEST/.git" ]] || die "$DEST 에 .git 이 있습니다. clone 인지 확인하고 직접 정리하세요 (자동 삭제하지 않습니다)"
+
+  # 교체 전에 봐 둔다. rm -rf 뒤에 물으면 언제나 없다고 나온다.
+  local had_config=0
+  [[ -f "$DEST/configs/env.yaml" ]] && had_config=1
+
   rm -rf "$DEST"; mkdir -p "$DEST"
   git -C "$STAGING" archive "$tag" | tar -x -C "$DEST"
   printf '%s %s\n' "$tag" "$sha" > "$DEST/VERSION"
@@ -181,9 +186,9 @@ sync_into_aa() {
     fi
     # 사본 안에 설정을 만들어 둔 경우. 방금 지워졌다는 사실을 알려야 한다 -
     # 안 그러면 다음 실행에서 "설정을 고쳤는데 안 먹는" 상태가 된다.
-    if [[ -f "$DEST/configs/env.yaml" ]]; then
-      warn "$DEST/configs/env.yaml 은 방금 교체로 사라졌습니다."
-      warn "    설정은 $here/configs/env.yaml 에 둡니다."
+    if [[ "$had_config" == 1 ]]; then
+      warn "$DEST/configs/env.yaml 이 있었는데 방금 교체로 사라졌습니다."
+      warn "    설정은 언제나 $here/configs/env.yaml 에 둡니다."
     fi
   fi
 
