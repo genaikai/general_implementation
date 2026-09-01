@@ -1,4 +1,33 @@
-.omc/
+# 데이터 — 확장자 단위로 전면 차단 (규격 §2.3)
+*.csv
+*.tsv
+*.parquet
+*.xlsx
+*.pkl
+*.npy
+*.npz
+*.h5
+*.feather
+*.sqlite*
+data/
+outputs/
+logs/
+
+# 로컬 설정
+configs/local.yaml
+.env
+
+# 노트북
+notebooks/local/
+.ipynb_checkpoints/
+
+# 파이썬
 __pycache__/
 *.py[cod]
 .venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# 세션 상태
+.omc/
