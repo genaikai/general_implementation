@@ -134,16 +134,31 @@ C8. 개발 장비에서는 Claude Code·LLM API로 얼마든지 짜고 검증한
 
 ```
 {BB}/                      {AA}/
-  requirements.txt           {BB}/                 ← 소스 사본. .git 없음. 통째 교체
-  requirements-dev.txt ✗     outputs/              ← 산출물
-  scripts/sync.sh            notebooks/            ← 운영 환경 탐색
-  src/run.py                 .staging/{BB}/        ← 이식 중계 clone (무시됨)
-  src/<pkg>/                 .staging/.gitignore   ← 내용은 `*` 한 줄
+  README.md                  {BB}/                 ← 소스 사본. .git 없음. 통째 교체
+  TODO.md                    configs/env.yaml      ← 운영 실값
+  todo/                      outputs/              ← 산출물
+  docs/                      notebooks/            ← 운영 환경 탐색
+  docs/insights/       ✗     run_*.sh              ← 실행 스크립트 (§3.0)
+  configs/env.example.yaml   .staging/{BB}/        ← 이식 중계 clone (무시됨)
+  requirements.txt           .staging/.gitignore   ← 내용은 `*` 한 줄
+  requirements-dev.txt ✗
+  scripts/sync.sh
+  src/run.py
+  src/<pkg>/
   tools/               ✗
   tests/
 
 ✗ = .gitattributes 의 export-ignore. 개발 장비 전용이며 archive 결과에 포함되지 않는다
 ```
+
+문서는 **성격으로 나눈다.** 둘 다 반입된다 — 저쪽에서 봐야 하는 것들이다.
+
+| | 무엇 |
+|---|---|
+| `TODO.md` | 첫 실행 전에 `{AA}` 에서 **만들어야 하는 것**의 목록 (§3.0) |
+| `todo/` | 그것들의 규격. 만드는 쪽이 읽는다 |
+| `docs/` | 이 프로그램이 **어떻게 도는지**. 결과를 읽는 쪽이 읽는다 |
+| `docs/insights/` ✗ | 저쪽에서 **가져온** 기록 (§4). 되돌아가지 않는다 |
 
 **운영 자산은 `{AA}/{BB}` 밖에 둔다.** `{AA}/{BB}`는 갱신 때마다 삭제·재생성되므로 안에 두면 사라진다.
 
@@ -264,6 +279,29 @@ __pycache__/
 
 ## 3. 검증 쪽 — 콘솔이 리포트다
 
+### 3.0 먼저 만들어야 하는 것 — `{BB}/TODO.md`
+
+**이식만으로 돌지 않는다.** C1·C2 때문에 `{AA}` 쪽에서 만들어야 하는 것이 남고,
+그게 무엇인지는 저쪽에서 알 방법이 없다 — 물어볼 곳도 인터넷도 없다. 그래서
+`{BB}/TODO.md` 에 목록을 두고 함께 이식한다.
+
+이 규격으로 도는 프로젝트라면 **최소한 이 셋**이 남는다.
+
+| | 왜 남나 |
+|---|---|
+| `configs/env.yaml` 채우기 | 운영 실값은 `{BB}` 에 둘 수 없다 (C3) |
+| 실행 스크립트 | 인자를 하나 빠뜨려도 프로그램은 기본값으로 돈다. 종료 코드를 사람이 눈으로 보면 등급 차이가 묻힌다 |
+| `{AA}/.gitignore` | `sync.sh` 는 `.staging/` 만 넣는다. 나머지(캐시·데이터)는 그대로 두면 운영 git 에 커밋된다 |
+
+**항목마다 "이 프로젝트의 사정인가, 어느 프로젝트나 해당하는가"를 갈라 적는다.**
+이 목록은 다음 프로젝트에서 본보기가 되는데, 구분이 없으면 안 해도 될 일을 하거나
+반대로 프로젝트 고유의 것을 빠뜨린다.
+
+**`TODO.md` 는 방법을 베끼지 않는다.** 만드는 법은 `todo/` 의 규격에 두고 가리키기만
+한다 — 베끼면 둘이 갈라지고, 갈라진 쪽을 보고 만들면 어긋난 것이 나온다.
+
+목록이 비면 그건 그것대로 정보다. 다 채운 뒤에 §3.1 로 간다.
+
 ### 3.1 실행
 
 ```bash
@@ -273,11 +311,15 @@ pip install -r {BB}/requirements.txt
 
 python {BB}/src/run.py --dry-run                        # ① 합성 데이터 스모크
 python {BB}/src/run.py --data <실데이터> --limit 1000    # ② 계약 확인
-python {BB}/src/run.py --data <실데이터>                 # ③ 전체
+./run_daily.sh <실데이터>                                # ③ 전체 — 스크립트로
 ```
 
 ①에서 실패하면 환경 문제고, ②에서 나오는 계약 위반이 첫 사이클의 실제 수확이다.
 계약이 깨끗해진 뒤에 ③으로 간다 — 틀린 계약 위에서 뽑은 성능 숫자는 믿을 수 없다.
+
+①②는 손으로 친다. 한 번씩만 돌리고 화면을 보는 것이 목적이라 그렇다. **③부터는
+§3.0 의 실행 스크립트로 한다** — 반복되는 실행에서 인자를 빠뜨리면 프로그램은
+기본값으로 돌아버리고, 그건 실패가 아니라 다른 결과로 나타난다.
 
 - **`PYTHONPATH`도 설치도 필요 없다.** `python {BB}/src/run.py`는 `sys.path[0]`을 `{BB}/src`로
   잡으므로 `<pkg>`가 그대로 import된다. 공용 venv에 우리 패키지를 남기지 않고,
@@ -348,6 +390,7 @@ status    : OK
 6. `{BB}/src/` 안에서 LLM·외부 API 호출 (C8)
 7. 리포트에 실데이터 값 찍기
 8. 운영 환경 탐색을 인사이트 기록 없이 끝내기
+9. `TODO.md` 없이 이식하기 — 저쪽에서 무엇이 남았는지 알 방법이 없다 (§3.0)
 
 ---
 
