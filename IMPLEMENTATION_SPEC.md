@@ -172,14 +172,14 @@ bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
 2. 태그를 fetch·checkout 한다. 태그가 없으면 목록을 보여주고 중단한다 — 태그 없이 실행하지 않는다
 3. `{AA}/{BB}`를 `git archive`로 통째 교체하고 `{BB}/VERSION`을 기록한다
 4. `outputs/`·`notebooks/`를 만든다
-5. 설정 파일을 쓰는 프로젝트라면(`{BB}/configs/example.yaml` 존재) `configs/local.yaml`을
+5. 설정 파일을 쓰는 프로젝트라면(`{BB}/configs/env.example.yaml` 존재) `configs/env.yaml`을
    **없을 때만** 복사한다. 있으면 손대지 않고 **example 에만 있는 키를 경고**한다.
    CLI 인자만 쓰는 프로젝트에서는 이 단계를 건너뛴다
 6. §2.3 점검을 수행한다. 걸리면 **사본을 지우고** 실패로 끝낸다
 7. 다음에 실행할 명령을 출력한다
 
 **일부러 하지 않는 일** — `pip install`(공용 venv라 사람이 `--dry-run`을 보고 판단해야 한다),
-`local.yaml` 덮어쓰기(운영 실값이 든 유일한 파일), venv 생성, git commit.
+`env.yaml` 덮어쓰기(운영 실값이 든 유일한 파일), venv 생성, git commit.
 
 `git archive`를 쓰는 이유가 세 겹으로 맞물린다.
 
@@ -243,7 +243,7 @@ CLAUDE.md             export-ignore
 data/
 outputs/
 logs/
-configs/local.yaml
+configs/env.yaml
 .env
 notebooks/local/
 __pycache__/
@@ -511,18 +511,25 @@ sync_into_aa() {
 
   mkdir -p outputs notebooks
 
-  local ex="$DEST/configs/example.yaml"
+  local ex="$DEST/configs/env.example.yaml"
   if [[ -f "$ex" ]]; then
     mkdir -p configs
-    if [[ ! -f configs/local.yaml ]]; then
-      cp "$ex" configs/local.yaml
-      log "configs/local.yaml 생성 — 운영 실값을 채우세요"
+    if [[ ! -f configs/env.yaml ]]; then
+      # 옛 이름을 쓰던 작업 폴더가 있다. 그대로 두면 채워둔 실값이 무시된 채
+      # 빈 env.yaml 로 돌아서, 설정을 고쳤는데 안 먹는 상태가 된다.
+      # 자동으로 옮기지 않는다 - 실값이 든 유일한 파일이라 사람이 확인해야 한다.
+      if [[ -f configs/local.yaml ]]; then
+        warn "configs/local.yaml 이 있습니다. 이름이 env.yaml 로 바뀌었습니다:"
+        warn "    mv configs/local.yaml configs/env.yaml"
+      fi
+      cp "$ex" configs/env.yaml
+      log "configs/env.yaml 생성 — 운영 실값을 채우세요"
     else
-      log "configs/local.yaml exists — kept"
+      log "configs/env.yaml exists — kept"
       local missing
-      missing=$(comm -23 <(yaml_keys "$ex") <(yaml_keys configs/local.yaml) | tr '\n' ' ')
+      missing=$(comm -23 <(yaml_keys "$ex") <(yaml_keys configs/env.yaml) | tr '\n' ' ')
       missing="${missing%"${missing##*[! ]}"}"
-      [[ -z "$missing" ]] || warn "example.yaml 에만 있는 키: $missing"
+      [[ -z "$missing" ]] || warn "env.example.yaml 에만 있는 키: $missing"
     fi
   fi
 
