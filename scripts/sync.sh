@@ -156,7 +156,10 @@ sync_into_aa() {
 
   mkdir -p outputs notebooks
 
-  local ex="$DEST/configs/env.example.yaml"
+  # 설정은 **언제나 {AA} 에 둔다.** $DEST 안에 두면 다음 교체 때 통째로 지워진다.
+  # 경로를 상대로 찍으면 어느 configs 인지 알 수 없어서 - 사본에도 configs/ 가
+  # 있다 - 전부 절대 경로로 말한다.
+  local ex="$DEST/configs/env.example.yaml" here; here=$(pwd -P)
   if [[ -f "$ex" ]]; then
     mkdir -p configs
     if [[ ! -f configs/env.yaml ]]; then
@@ -164,17 +167,23 @@ sync_into_aa() {
       # 빈 env.yaml 로 돌아서, 설정을 고쳤는데 안 먹는 상태가 된다.
       # 자동으로 옮기지 않는다 - 실값이 든 유일한 파일이라 사람이 확인해야 한다.
       if [[ -f configs/local.yaml ]]; then
-        warn "configs/local.yaml 이 있습니다. 이름이 env.yaml 로 바뀌었습니다:"
-        warn "    mv configs/local.yaml configs/env.yaml"
+        warn "$here/configs/local.yaml 이 있습니다. 이름이 env.yaml 로 바뀌었습니다:"
+        warn "    mv $here/configs/local.yaml $here/configs/env.yaml"
       fi
       cp "$ex" configs/env.yaml
-      log "configs/env.yaml 생성 — 운영 실값을 채우세요"
+      log "생성 — 운영 실값을 채우세요: $here/configs/env.yaml"
     else
-      log "configs/env.yaml exists — kept"
+      log "그대로 둡니다 (실값이 든 파일): $here/configs/env.yaml"
       local missing
       missing=$(comm -23 <(yaml_keys "$ex") <(yaml_keys configs/env.yaml) | tr '\n' ' ')
       missing="${missing%"${missing##*[! ]}"}"
       [[ -z "$missing" ]] || warn "env.example.yaml 에만 있는 키: $missing"
+    fi
+    # 사본 안에 설정을 만들어 둔 경우. 방금 지워졌다는 사실을 알려야 한다 -
+    # 안 그러면 다음 실행에서 "설정을 고쳤는데 안 먹는" 상태가 된다.
+    if [[ -f "$DEST/configs/env.yaml" ]]; then
+      warn "$DEST/configs/env.yaml 은 방금 교체로 사라졌습니다."
+      warn "    설정은 $here/configs/env.yaml 에 둡니다."
     fi
   fi
 
@@ -192,7 +201,7 @@ sync_into_aa() {
 
   cat <<EOF
 
-next:
+next:  (전부 $here 에서 — 설정도 실행도 여기가 기준이다)
   source <venv>/bin/activate
   pip install --dry-run -r $DEST/requirements.txt && pip check
   python $entry --dry-run
