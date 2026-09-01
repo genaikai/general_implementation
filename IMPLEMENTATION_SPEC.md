@@ -27,6 +27,7 @@
 | C5 | 회수 가능한 것은 **입력 데이터의 포맷**과 **사람의 인사이트** 둘뿐 |
 | C6 | AA는 사내 git 관리 대상. 가짜 데이터와 BB의 `.git`이 AA에 올라가면 안 된다 |
 | C7 | 사내는 Python 3.14 + **기존 venv**(공용일 수 있음). PyPI 설치는 가능 |
+| C8 | 사내에서는 Claude Code·LLM API를 쓸 수 없다. 본 머신 개발 중에는 제한 없이 쓴다 |
 
 아래 규칙은 전부 이 제약에서 따라나온 것이다. 규칙이 불편하면 제약이 아직 유효한지 먼저 확인하라.
 
@@ -92,6 +93,44 @@ python {BB}/src/run.py --data /mnt/real/2026-08.parquet --threshold 0.5
 > **사내에서 "코드 한 줄만 고치면 되는데" 하는 순간이 오면, 그건 이 규칙이 이미 깨졌다는 신호다.**
 > 고치지 말고 "이 값이 인자에 없었다"를 인사이트로 가지고 나온다.
 
+### 1.4 개발 도구와 제품 코드를 가른다
+
+C8. 본 머신에서는 Claude Code·LLM API로 얼마든지 짜고 검증한다. 사내에서는 그 호출이 전부 실패한다.
+그리고 사내 저장소에 남는 것은 **제품 코드뿐이어야 한다** — 개발 환경 아티팩트가 섞이면
+읽는 사람에게 잡음이고, 도구 설정·프롬프트에는 생각보다 많은 것이 묻어 있다.
+
+**도구를 어디에 둘 것인가** — 프로젝트 성격에 따라 고른다.
+
+| 선택 | 언제 |
+|---|---|
+| 같은 저장소 + `export-ignore` (기본) | 도구가 일반적일 때. 버전 관리·백업·머신 이동이 유지된다 |
+| 별도 저장소 `{BB}-tools` | 도구에 사내 도메인 지식이 묻어 있거나 `{BB}`가 public일 때 |
+| 로컬 전용 (`.gitignore`) | 한 번 쓰고 버릴 스크래치. 그 외에는 권하지 않는다 |
+
+세 번째를 기본으로 삼지 않는 이유는 **도구도 자산이기 때문**이다. 평가 하네스나 검증 스크립트는
+사이클을 돌수록 쌓이는데, 추적되지 않는 파일은 실수로 지우면 끝이고 히스토리도 없다.
+기준은 단순하다 — **두 번 이상 쓸 것이면 어딘가에 커밋하고, 한 번 쓰고 버릴 것이면 커밋하지 않는다.**
+
+**어디에 두든 지켜야 하는 것**
+
+- **import 방향은 한쪽이다.** `tools/`는 `src/`를 import해도 되지만,
+  **`src/`는 `tools/`를 import하지 않는다.** 위치보다 이 규칙이 실제 사고를 막는다
+- 의존성을 가른다 — `requirements.txt`(사내 실행용) / `requirements-dev.txt`(본 머신 전용)
+- **API 키 없이 테스트가 전부 통과해야 한다.** 사내 실행 가능성을 본 머신에서 기계적으로
+  확인하는 유일한 방법이다. 키를 지운 채 통과하면 API 의존이 없다는 것이 증명된다:
+
+  ```bash
+  env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY python -m pytest
+  ```
+
+- 로직 자체가 LLM을 필요로 한다면 그 기능은 사내에서 돌지 않는다. 설계에서 배제하거나,
+  규칙 기반 대체 경로를 `src/` 안에 두고 그쪽을 기본 경로로 삼는다
+
+무엇이 실제로 사내에 도착하는지는 §2.3이 정하고, `sync.sh`가 양쪽에서 검사한다(§2.2).
+
+> 사내에서 막힌 것이 LLM API만이 아니라 외부 네트워크 전반이라면, 이 조항의 대상을
+> 네트워크를 타는 모든 호출로 넓혀 읽는다. 판단 기준은 같다 — *사내에서 실패할 호출은 `src/`에 없다.*
+
 ---
 
 ## 2. 이식 — `.git`도 데이터도 넘기지 않는다
@@ -101,25 +140,38 @@ python {BB}/src/run.py --data /mnt/real/2026-08.parquet --threshold 0.5
 ```
 {BB}/                      {AA}/
   requirements.txt           {BB}/                 ← 소스 사본. .git 없음. 통째 교체
-  scripts/sync.sh            outputs/              ← 산출물
-  src/run.py                 notebooks/            ← 사내 탐색
-  src/<pkg>/                 .staging/{BB}/        ← 이식 중계 clone (무시됨)
-  tests/                     .staging/.gitignore   ← 내용은 `*` 한 줄
+  requirements-dev.txt ✗     outputs/              ← 산출물
+  scripts/sync.sh            notebooks/            ← 사내 탐색
+  src/run.py                 .staging/{BB}/        ← 이식 중계 clone (무시됨)
+  src/<pkg>/                 .staging/.gitignore   ← 내용은 `*` 한 줄
+  tools/               ✗
+  tests/
+
+✗ = .gitattributes 의 export-ignore. 본 머신 전용이며 archive 결과에 포함되지 않는다
 ```
 
 **사내 자산은 `{AA}/{BB}` 밖에 둔다.** `{AA}/{BB}`는 갱신 때마다 삭제·재생성되므로 안에 두면 사라진다.
 
-### 2.2 절차
+### 2.2 절차 — 한 스크립트, 두 모드
 
-clone 한 번, 그 다음부터는 스크립트 한 줄이다. 최초든 갱신이든 같은 명령이고 멱등하다.
+`sync.sh`는 실행 위치를 보고 스스로 모드를 정한다. 점검 로직은 한 벌이라 양쪽이 공유한다.
 
 ```bash
+# ① 본 머신 — 태그를 낸 뒤, push 하기 전에
+cd {BB} && bash scripts/sync.sh v0.2
+#   태그의 archive 를 임시로 풀어 §2.3 점검만 하고 지운다
+
+# ② 사내 — {AA} 루트에서. 최초든 갱신이든 같은 명령이고 멱등하다
 cd {AA}
 git clone <remote> .staging/{BB}           # 최초 1회만
 bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
 ```
 
-`sync.sh`가 하는 일 (전문은 **부록 A**):
+**같은 점검이 두 번 도는 것이 설계다.** ①에서 걸리면 태그를 다시 내면 그만이고,
+②에서 걸리면 이미 사내까지 간 뒤라 사이클을 하나 버린다. ①을 잊어도 ②가 막아주지만,
+비싸게 막는다.
+
+이식 모드(②)가 하는 일 (전문은 **부록 A**):
 
 1. `.staging/.gitignore`(`*`)와 `{AA}`의 `.gitignore`의 `.staging/` 항목을 보장한다
 2. 태그를 fetch·checkout 한다. 태그가 없으면 목록을 보여주고 중단한다 — 태그 없이 실행하지 않는다
@@ -128,7 +180,7 @@ bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
 5. 설정 파일을 쓰는 프로젝트라면(`{BB}/configs/example.yaml` 존재) `configs/local.yaml`을
    **없을 때만** 복사한다. 있으면 손대지 않고 **example 에만 있는 키를 경고**한다.
    CLI 인자만 쓰는 프로젝트에서는 이 단계를 건너뛴다
-6. 유출 점검: `.git` 부재, 데이터 확장자 0개. 걸리면 **사본을 지우고** 실패로 끝낸다
+6. §2.3 점검을 수행한다. 걸리면 **사본을 지우고** 실패로 끝낸다
 7. 다음에 실행할 명령을 출력한다
 
 **일부러 하지 않는 일** — `pip install`(공용 venv라 사람이 `--dry-run`을 보고 판단해야 한다),
@@ -146,7 +198,41 @@ bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
 > AA를 zip이나 파일 복사로 외부에 전달하는 절차가 있다면, 중계 clone을 AA 밖(`~/src/{BB}`)으로 옮긴다.
 > git은 중첩 저장소 내부를 추적하지 않지만 zip·백업 도구는 `.git`을 통째로 가져간다.
 
-### 2.3 `{BB}`의 `.gitignore` — 부록이 아니라 조항이다
+### 2.3 이식 표면 — 무엇이 사내에 도착하는가
+
+두 파일이 경계를 정한다.
+
+- **`.gitignore`** — 저장소에 애초에 들어오지 못하게 한다 (데이터·산출물·로컬 설정)
+- **`.gitattributes`의 `export-ignore`** — 저장소에는 두되 archive 결과에서 뺀다 (개발 전용)
+
+`git archive`는 커밋 히스토리를 담지 않으므로 작성자·이메일·커밋 메시지는 애초에 넘어가지
+않는다. 파일 단위 선별과 파일 내용만 관리하면 된다.
+
+```gitattributes
+tools/                export-ignore    # LLM·외부 API 를 쓰는 개발 보조 도구
+requirements-dev.txt  export-ignore
+docs/insights/        export-ignore    # 사내에서 가져온 인사이트 기록
+.claude/              export-ignore    # AI 도구 설정
+CLAUDE.md             export-ignore
+.github/              export-ignore
+.gitattributes        export-ignore    # ← 자기 자신도 뺀다
+```
+
+마지막 줄이 요점이다. `.gitattributes`가 남으면 "무언가를 제외했다"는 사실이 목록째 드러난다.
+자기 자신을 대상에 넣으면 `{AA}`에서는 그 파일이 보이지 않는다.
+
+`sync.sh`가 양쪽 모드에서 확인하는 항목:
+
+| 항목 | 잡는 것 |
+|---|---|
+| 금지 파일·디렉터리 | `tools/`, `.claude/`, `CLAUDE.md`, `requirements-dev.txt`, `.gitattributes`, `.git` 잔존 |
+| API import | `anthropic`·`openai` — 사내에서 죽을 의존 (C8) |
+| `requirements.txt` | 개발 전용 패키지 혼입 |
+| 개인 머신 절대 경로 | `/Users/…`, `/home/…` — §1.3 위반이기도 하다 |
+| 이메일·커밋 트레일러 | 소스에 박힌 개인 이메일, `Co-Authored-By` |
+| 데이터 확장자 | `.csv`, `.parquet` 등 |
+
+#### `{BB}`의 `.gitignore`
 
 ```gitignore
 *.csv
@@ -172,11 +258,7 @@ __pycache__/
 .pytest_cache/
 ```
 
-커밋 전 점검 — 아무것도 출력되지 않아야 한다:
-
-```bash
-git ls-files | grep -E '\.(csv|tsv|parquet|xlsx|pkl|npy|npz|h5|feather|sqlite)$|^\.staging'
-```
+이 점검을 손으로 할 필요는 없다. `sync.sh`가 두 모드 모두에서 자동으로 한다.
 
 ---
 
@@ -263,8 +345,9 @@ status    : OK
 3. `{AA}/{BB}`에 `.git` 두기 / `{AA}/{BB}` 안에 사내 설정·노트북 두기
 4. 태그 없이 사내에서 실행
 5. 사내에서 `pip --upgrade` / BB 패키지를 venv에 설치
-6. 리포트에 실데이터 값 찍기
-7. 사내 탐색을 인사이트 기록 없이 끝내기
+6. `{BB}/src/` 안에서 LLM·외부 API 호출 (C8)
+7. 리포트에 실데이터 값 찍기
+8. 사내 탐색을 인사이트 기록 없이 끝내기
 
 ---
 
@@ -277,25 +360,32 @@ status    : OK
 ```bash
 #!/usr/bin/env bash
 #
-# BB → AA 이식 스크립트. **AA 루트에서** 실행한다.
+# {BB} → {AA} 이식 스크립트. 실행 위치에 따라 두 모드로 동작한다.
 #
-#   bash .staging/{BB}/scripts/sync.sh <tag>
+#   본 머신 ({BB} 저장소 루트에서)   bash scripts/sync.sh <tag>
+#       → 태그의 archive 를 임시로 풀어 점검만 한다. push 전에 돌린다
+#
+#   사내   ({AA} 루트에서)           bash .staging/{BB}/scripts/sync.sh <tag>
+#       → 이식(교체·VERSION·디렉터리)을 하고 같은 점검을 한 번 더 한다
 #
 # {AA}·{BB} 의 실제 이름은 프로젝트마다 다르다. {BB} 는 이 스크립트의 위치에서 유도하고
 # ({AA}/.staging/{BB}/scripts/sync.sh), {AA} 는 실행 위치(cwd)라 이름이 필요 없다.
 #
-# 최초 1회든 갱신이든 같은 명령이며, 몇 번을 돌려도 같은 상태가 된다.
-# 이 스크립트는 실행 도중 checkout 으로 자기 자신을 바꾸므로, 본문 전체를
+# 이 스크립트는 실행 도중 checkout 으로 자기 자신을 바꿀 수 있으므로, 본문 전체를
 # main() 으로 감싸 파싱이 먼저 끝나게 한다. (bash 는 스크립트를 조금씩 읽어가며 실행한다)
 
 set -euo pipefail
 
-SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)   # {AA}/.staging/{BB}/scripts
-REPO_DIR=$(dirname "$SELF_DIR")                             # {AA}/.staging/{BB}
-NAME=$(basename "$REPO_DIR")                                # {BB}
+SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+REPO_DIR=$(dirname "$SELF_DIR")
+NAME=$(basename "$REPO_DIR")
 STAGING=".staging/$NAME"
 DEST="$NAME"
+
 DATA_EXT='csv|tsv|parquet|xlsx|xls|pkl|pickle|npy|npz|h5|feather|sqlite'
+# 이식 표면에 남아서는 안 되는 것들 — .gitattributes 의 export-ignore 로 빼야 한다
+FORBIDDEN=(.git .gitattributes .github .claude .cursor .mcp.json CLAUDE.md AGENTS.md
+           tools requirements-dev.txt docs/insights)
 
 log()  { printf '[sync] %s\n' "$*"; }
 warn() { printf '[sync] ⚠ %s\n' "$*" >&2; }
@@ -323,42 +413,109 @@ yaml_keys() {
   ' "$1" | sort -u
 }
 
-main() {
-  local tag="${1:-}"
-  [[ -n "$tag" ]] || die "태그를 지정하세요:  bash $STAGING/scripts/sync.sh <tag>"
-  [[ "$REPO_DIR" == "$(pwd -P)/.staging/$NAME" ]] || die \
-    "AA 루트에서 실행하세요. 기대 위치: <AA>/.staging/$NAME/scripts/sync.sh, 현재 cwd: $(pwd -P)"
-  [[ -d "$STAGING/.git" ]] || die "$STAGING 이 clone 이 아닙니다 (.git 없음)"
+# 트리 안을 훑되 자기 자신(scripts/sync.sh)은 제외하고, 경로를 트리 기준 상대 경로로 줄인다.
+scan() {  # scan <dir> <regex>
+  grep -rInE "$2" "$1" 2>/dev/null | grep -v "^$1/scripts/sync\.sh:" | sed "s|^$1/||" || true
+}
 
-  # 1. 안전장치 — 커밋보다 먼저 깔아둔다
+# 이식 표면 점검. 인자로 받은 디렉터리는 "실제로 사내에 도착할 것"이어야 한다.
+# 두 모드가 이 함수를 공유하므로 검사 기준이 한 벌뿐이다.
+inspect_tree() {
+  local d="$1" bad=0 hits f
+
+  for f in "${FORBIDDEN[@]}"; do
+    if [[ -e "$d/$f" ]]; then
+      warn "이식 표면에 남아있음: $f   → .gitattributes 에 '$f export-ignore' 추가"
+      bad=1
+    fi
+  done
+
+  hits=$(find "$d" -type f | grep -Ei "\.($DATA_EXT)\$" | sed "s|^$d/||" || true)
+  if [[ -n "$hits" ]]; then
+    warn "데이터 파일:"; printf '%s\n' "$hits" >&2; bad=1
+  fi
+
+  hits=$(scan "$d" '^[[:space:]]*(import|from)[[:space:]]+(anthropic|openai)')
+  if [[ -n "$hits" ]]; then
+    warn "사내에서 쓸 수 없는 API import (C8):"; printf '%s\n' "$hits" >&2; bad=1
+  fi
+
+  if [[ -f "$d/requirements.txt" ]]; then
+    hits=$(grep -inE '^[[:space:]]*(anthropic|openai|claude)' "$d/requirements.txt" || true)
+    if [[ -n "$hits" ]]; then
+      warn "requirements.txt 에 개발 전용 패키지:"; printf '%s\n' "$hits" >&2; bad=1
+    fi
+  fi
+
+  hits=$(scan "$d" '/(Users|home)/[A-Za-z0-9._-]+')
+  if [[ -n "$hits" ]]; then
+    warn "개인 머신 절대 경로 (§1.3 위반이기도 하다 — 인자로 빼라):"; printf '%s\n' "$hits" >&2; bad=1
+  fi
+
+  hits=$(scan "$d" 'Co-Authored-By|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+  if [[ -n "$hits" ]]; then
+    warn "이메일·커밋 트레일러:"; printf '%s\n' "$hits" >&2; bad=1
+  fi
+
+  return $bad
+}
+
+require_tag() {
+  local repo="$1" tag="$2"
+  if ! git -C "$repo" rev-parse -q --verify "refs/tags/$tag^{}" >/dev/null; then
+    warn "태그 '$tag' 가 없습니다. 사용 가능한 태그:"
+    git -C "$repo" tag -l >&2
+    exit 1
+  fi
+}
+
+# 본 머신 — archive 결과를 임시로 풀어 점검만 한다
+preflight() {
+  local tag="$1"
+  require_tag "$REPO_DIR" "$tag"
+  local sha; sha=$(git -C "$REPO_DIR" rev-parse --short "$tag^{}")
+  local tmp; tmp=$(mktemp -d)
+  # 값을 지금 확정해 둔다 — 함수를 벗어난 뒤 트랩이 돌 때 $tmp 는 이미 사라지고 없다
+  trap "rm -rf '$tmp'" EXIT
+
+  git -C "$REPO_DIR" archive "$tag" | tar -x -C "$tmp"
+  log "preflight: $tag ($sha) — $(find "$tmp" -type f | wc -l | tr -d ' ') files"
+
+  if ! inspect_tree "$tmp"; then
+    die "preflight FAILED — 위 항목을 고치고 태그를 다시 내세요"
+  fi
+  log "preflight: OK"
+  cat <<EOF
+
+next:
+  git push origin $tag
+EOF
+}
+
+# 사내 — 이식하고 같은 점검을 한 번 더 한다
+sync_into_aa() {
+  local tag="$1"
+
   [[ -f .staging/.gitignore ]] || printf '*\n' > .staging/.gitignore
   if [[ ! -f .gitignore ]] || ! grep -qx '\.staging/' .gitignore; then
     printf '.staging/\n' >> .gitignore
-    log "AA/.gitignore 에 .staging/ 추가"
+    log "$(basename "$(pwd -P)")/.gitignore 에 .staging/ 추가"
   fi
 
-  # 2. 태그 확보 — 태그 없이는 실행하지 않는다
   git -C "$STAGING" fetch --tags --quiet
-  if ! git -C "$STAGING" rev-parse -q --verify "refs/tags/$tag^{}" >/dev/null; then
-    warn "태그 '$tag' 가 없습니다. 사용 가능한 태그:"
-    git -C "$STAGING" tag -l >&2
-    exit 1
-  fi
+  require_tag "$STAGING" "$tag"
   git -C "$STAGING" -c advice.detachedHead=false checkout --quiet "$tag"
   local sha; sha=$(git -C "$STAGING" rev-parse --short HEAD)
 
-  # 3. 실행 사본 통째 교체
   [[ ! -e "$DEST/.git" ]] || die "$DEST 에 .git 이 있습니다. clone 인지 확인하고 직접 정리하세요 (자동 삭제하지 않습니다)"
   rm -rf "$DEST"; mkdir -p "$DEST"
   git -C "$STAGING" archive "$tag" | tar -x -C "$DEST"
   printf '%s %s\n' "$tag" "$sha" > "$DEST/VERSION"
   log "tag $tag ($sha)"
-  log "$DEST/ replaced ($(find "$DEST" -type f | wc -l | tr -d ' ') files, no .git)"
+  log "$DEST/ replaced ($(find "$DEST" -type f | wc -l | tr -d ' ') files)"
 
-  # 4. 사내 자산 자리 — DEST 밖이어야 갱신에 살아남는다
   mkdir -p outputs notebooks
 
-  # 5. 사내 설정 — 설정 파일을 쓰는 프로젝트에서만. 있으면 절대 건드리지 않는다
   local ex="$DEST/configs/example.yaml"
   if [[ -f "$ex" ]]; then
     mkdir -p configs
@@ -374,18 +531,12 @@ main() {
     fi
   fi
 
-  # 6. 유출 점검 — 하나라도 걸리면 실패로 끝낸다
-  [[ ! -e "$DEST/.git" ]] || die "leak check: $DEST/.git 이 존재합니다"
-  local leaked
-  leaked=$(find "$DEST" -type f | grep -Ei "\.($DATA_EXT)\$" || true)
-  if [[ -n "$leaked" ]]; then
-    warn "데이터 파일이 사본에 있습니다:"; printf '%s\n' "$leaked" >&2
+  if ! inspect_tree "$DEST"; then
     rm -rf "$DEST"   # 실수로 커밋되는 것을 막기 위해 사본을 남기지 않는다
-    die "leak check FAILED — $DEST 를 제거했습니다. BB 의 .gitignore 를 고치고 새 태그를 내세요"
+    die "점검 FAILED — $DEST 를 제거했습니다. 본 머신에서 고치고 새 태그를 내세요"
   fi
-  log "leak check: OK"
+  log "점검: OK"
 
-  # 안내 문구용 진입점 — src/run.py 를 우선하고, 없으면 src/ 의 유일한 .py 를 쓴다
   local entry="$DEST/src/run.py"
   if [[ ! -f "$entry" ]]; then
     local pys=("$DEST"/src/*.py)
@@ -399,6 +550,23 @@ next:
   pip install --dry-run -r $DEST/requirements.txt && pip check
   python $entry --dry-run
 EOF
+}
+
+main() {
+  local tag="${1:-}" cwd; cwd=$(pwd -P)
+  [[ -n "$tag" ]] || die "태그를 지정하세요:  bash <이 스크립트> <tag>"
+
+  if [[ "$REPO_DIR" == "$cwd" ]]; then
+    preflight "$tag"
+  elif [[ "$REPO_DIR" == "$cwd/.staging/$NAME" ]]; then
+    [[ -d "$STAGING/.git" ]] || die "$STAGING 이 clone 이 아닙니다 (.git 없음)"
+    sync_into_aa "$tag"
+  else
+    die "실행 위치가 맞지 않습니다. 둘 중 하나여야 합니다:
+       본 머신:  cd <{BB} 저장소> && bash scripts/sync.sh <tag>
+       사내:     cd <{AA}>        && bash .staging/$NAME/scripts/sync.sh <tag>
+     현재 cwd: $cwd"
+  fi
 }
 
 main "$@"
