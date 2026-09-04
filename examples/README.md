@@ -41,7 +41,7 @@ INPUT_SCHEMA: tuple[Field, ...] = (
 ## 2. 계산을 짠다 — `orders/pipeline.py`
 
 ```python
-def compute_metrics(rows: list[dict]) -> dict:
+def process_data(rows: list[dict]) -> dict:
     ...
     # 채널은 계약의 allowed 에서 가져온다 — 코드에 박으면 계약과 갈라진다
     declared = next((f.allowed for f in INPUT_SCHEMA if f.name == "channel"), ())

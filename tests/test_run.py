@@ -133,5 +133,5 @@ def test_entry_point_only_delegates():
     """진입점만 src/run.py 에 두고 나머지는 src/<pkg>/ 안에 넣는다 (규격 §3.1)."""
     import run
 
-    for name in ("load_csv", "compute_metrics", "main"):
+    for name in ("load_csv", "process_data", "main"):
         assert not hasattr(run, name), f"run.py 에 {name} 이 남아 있다 — 패키지로 옮겨라"

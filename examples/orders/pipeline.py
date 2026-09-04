@@ -15,7 +15,7 @@ from collections import Counter
 from .contracts import INPUT_SCHEMA, is_null, parse
 
 
-def compute_metrics(rows: list[dict]) -> dict:
+def process_data(rows: list[dict]) -> dict:
     """채널별 주문 분포와 금액 요약. 실데이터의 개별 값은 절대 찍지 않는다 (C3)."""
     amounts: list[float] = []
     quantities: list[int] = []
