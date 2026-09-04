@@ -2,6 +2,9 @@ tools/                   export-ignore
 requirements-dev.txt     export-ignore
 docs/insights/           export-ignore
 .claude/                 export-ignore
+.cursor/                 export-ignore
+.mcp.json                export-ignore
+AGENTS.md                export-ignore
 CLAUDE.md                export-ignore
 .github/                 export-ignore
 IMPLEMENTATION_SPEC.md   export-ignore

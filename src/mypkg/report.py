@@ -34,6 +34,7 @@ def render(
     n_rows: int,
     n_cols: int,
     violations: list[str],
+    notes: list[str],
     metrics: dict,
     runtime_s: float,
     status: str,
@@ -52,6 +53,11 @@ def render(
         f"contract  : {n_ok} ok / {len(violations)} MISMATCH",
     ]
     lines += [f"  - {v}" for v in violations]
+    # 노트는 "어긋났지만 처리 로직이 안 읽는다" — 위반과 섞으면 매 실행마다 뜨는
+    # 줄이 생기고, 사람은 곧 contract 줄 자체를 안 보게 된다 (규격 §3.2)
+    if notes:
+        lines.append(f"notes     : {len(notes)} (판정에 영향 없음)")
+        lines += [f"  - {n}" for n in notes]
     lines.append("metrics   :")
     lines += [f"  {_pad(k, 16)} {v}" for k, v in metrics.items()]
     lines.append(f"runtime   : {runtime_s:.1f}s, peak {peak_gb():.2f}GB")

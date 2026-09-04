@@ -4,9 +4,10 @@
 (운영 실값), 그쪽 환경에 달린 것이다.
 
 ```
-[ ] 1. 작업 폴더 .gitignore     ⚠ 실데이터가 운영 git 에    어느 프로젝트나
-[ ] 2. 실행 스크립트            todo/scripting.md          어느 프로젝트나
-[ ] 3. 순서대로 점검            아래 3단계                 어느 프로젝트나
+[ ] 1. configs/env.yaml 채우기  sync.sh 가 만들어 둔다      운영 실값
+[ ] 2. 작업 폴더 .gitignore     ⚠ 실데이터가 운영 git 에    어느 프로젝트나
+[ ] 3. 실행 스크립트            todo/scripting.md          어느 프로젝트나
+[ ] 4. 순서대로 점검            아래 4단계                 어느 프로젝트나
 ```
 
 **스캐폴드 상태라 전부 "어느 프로젝트나"에 해당한다.** 실제 프로젝트로 갈아끼우면
@@ -18,7 +19,26 @@
 
 ---
 
-## 1. `{AA}/.gitignore`
+## 1. `{AA}/configs/env.yaml` 채우기
+
+`sync.sh` 가 `configs/env.example.yaml` 을 복사해 만들어 둔다. **없을 때만** 복사하므로
+한번 채운 실값은 다음 sync 에 덮이지 않는다.
+
+```yaml
+paths:
+  venv: /opt/shared/venv   # 이 파이썬으로 갈아타서 실행한다. activate 불필요
+```
+
+비워두면 지금 켜져 있는 파이썬으로 그냥 돈다. 공용 venv 가 여럿이면 채우는 쪽이 안전하다
+— activate 를 잊고 돌면 실패가 아니라 **다른 결과**가 나온다.
+
+> **`{AA}/{BB}/configs/` 가 아니다.** 그쪽은 sync 때마다 통째로 지워진다.
+
+CLI 인자만 쓰기로 했으면 이 항목은 건너뛴다.
+
+---
+
+## 2. `{AA}/.gitignore`
 
 `sync.sh` 는 `.staging/` 한 줄만 보장한다. 나머지는 그대로 두면 **운영 git 에 커밋된다.**
 
@@ -35,23 +55,23 @@ __pycache__/
 > **`{AA}/{BB}` 가 커밋되는 것은 목적이다.** 결과 파일을 못 가져오는 상황에서
 > "어떤 코드로 돌렸는지"가 남는 유일한 형태다. 그건 지우지 마라.
 
-## 2. 실행 스크립트
+## 3. 실행 스크립트
 
 **규격: [`todo/scripting.md`](todo/scripting.md)**
 
 ①②는 손으로 쳐도 된다. **반복되는 실행은 스크립트로 감싼다** — 인자를 하나 빠뜨려도
 프로그램은 기본값으로 돌아버리고, 그건 실패가 아니라 **다른 결과**로 나타난다.
 
-## 3. 순서대로 점검
+## 4. 순서대로 점검
 
 ```bash
 source <기존 venv>/bin/activate
 pip install --dry-run -r {BB}/requirements.txt && pip check   # ⓪ 충돌 먼저
 pip install -r {BB}/requirements.txt
 
-python {BB}/src/run.py --dry-run                     # ① 환경 확인
-python {BB}/src/run.py --data <실데이터> --limit 1000 # ② 계약 확인
-./run_daily.sh <실데이터>                             # ③ 전체 — 2번의 스크립트로
+python {BB}/src/run.py --dry-run --config configs/env.yaml     # ① 환경 확인
+python {BB}/src/run.py --data <실데이터> --limit 1000           # ② 계약 확인
+./run_daily.sh <실데이터>                                      # ③ 전체 — 3번의 스크립트로
 ```
 
 - **①에서 실패하면 환경 문제다.** 코드가 아니라 venv·파이썬 버전을 본다

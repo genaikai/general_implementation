@@ -5,110 +5,94 @@
     python {BB}/src/run.py --dry-run [--adversarial]
 
 파일을 직접 실행하면 sys.path[0] 이 {BB}/src 가 되므로 mypkg 가 그대로 import 된다.
-PYTHONPATH 도, 공용 venv 에 대한 설치도 필요 없다.
-바뀔 만한 값은 전부 CLI 인자로 받는다 (규격 §1.3) — 운영 환경에서는 코드를 고칠 수 없다.
+PYTHONPATH 도, 공용 venv 에 대한 설치도 필요 없다 — 공용 venv 에 우리 패키지를 남기지
+않아야 {AA}/{BB} 통째 교체가 무연산이 된다.
 
-종료 코드 (규격 §3.2) — 실행 스크립트가 여기에 분기한다:
-    0  정상
-    1  돌았지만 온전치 않다 (계약 위반). 재시도해도 같다
-    2  시작도 못 했다 (인자 누락·입력 없음). 고치고 다시 돌린다
+이 파일이 하는 일은 둘뿐이다: venv 를 갈아타는 것과 본체로 넘기는 것.
+나머지는 전부 mypkg/ 안에 있다.
 """
 
-import argparse
-import csv
+import os
 import sys
-import time
 from pathlib import Path
 
-from mypkg.contracts import INPUT_SCHEMA, is_null, parse, validate
-from mypkg.report import render
-from mypkg.synth import generate
+_SWITCH_FLAG = "_MYPKG_VENV_SWITCHED"
 
 
-def read_version() -> str:
-    path = Path(__file__).resolve().parent.parent / "VERSION"
-    return path.read_text().strip() if path.exists() else "unversioned"
+def _config_path(argv: list[str]) -> str:
+    """--config 를 argparse 전에 훔쳐본다. venv 를 갈아타려면 파싱보다 먼저다."""
+    for i, arg in enumerate(argv):
+        if arg == "--config" and i + 1 < len(argv):
+            return argv[i + 1]
+        if arg.startswith("--config="):
+            return arg.split("=", 1)[1]
+    return ""
 
 
-def load_csv(path: str, limit: int) -> list[dict]:
-    with open(path, newline="", encoding="utf-8-sig") as fh:
-        rows = []
-        for i, row in enumerate(csv.DictReader(fh)):
-            if limit and i >= limit:
-                break
-            rows.append(row)
-    return rows
+def _peek_venv(config: str) -> str:
+    """설정에서 paths.venv 만 뽑는다.
+
+    의존성을 늘리지 않으려고 손으로 읽는다 — 2칸 들여쓰기 매핑을 가정하며,
+    이 한 키를 보려고 PyYAML 을 requirements.txt 에 넣을 이유가 없다 (C7).
+    """
+    try:
+        text = Path(config).expanduser().read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+    in_paths = False
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line[:1].isspace():
+            in_paths = line.split(":")[0].strip() == "paths"
+            continue
+        if in_paths and line.strip().split(":")[0].strip() == "venv":
+            value = line.split(":", 1)[1].split("#")[0].strip().strip("\"'")
+            return "" if value in ("", "null", "~") else value
+    return ""
 
 
-def compute_metrics(rows: list[dict]) -> dict:
-    """도메인 지표로 갈아끼울 자리. 지표 이름은 사이클 사이에 바꾸지 않는다."""
-    numeric = [f.name for f in INPUT_SCHEMA if f.dtype in ("int", "float")]
-    metrics = {"rows": f"{len(rows):,}"}
-    for name in numeric:
-        values = []
-        for row in rows:
-            raw = row.get(name)
-            if is_null(raw):
-                continue
-            try:
-                values.append(parse(raw, "float"))
-            except (TypeError, ValueError):
-                continue
-        metrics[f"{name}_mean"] = f"{sum(values) / len(values):.4f}" if values else "n/a"
-        metrics[f"{name}_nullrate"] = f"{1 - len(values) / len(rows):.4f}" if rows else "n/a"
-    return metrics
+def switch_venv(argv: list[str]) -> None:
+    """설정에 적은 파이썬으로 갈아타고 같은 명령을 다시 시작한다 (규격 §3.1).
 
+    공용 venv 가 여럿인 환경에서는 activate 를 잊거나 다른 것을 켠 채로 도는 일이
+    흔하고, 그건 실패가 아니라 다른 결과로 나타난다.
 
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="run.py", description=__doc__.splitlines()[0])
-    ap.add_argument("--data", help="입력 CSV 경로. --dry-run 이 아니면 필수")
-    ap.add_argument("--dry-run", action="store_true", help="합성 데이터로 전 구간 스모크")
-    ap.add_argument("--limit", type=int, default=0, help="앞 N행만 처리 (0=전체)")
-    ap.add_argument("--rows", type=int, default=1000, help="--dry-run 이 생성할 행 수")
-    ap.add_argument("--seed", type=int, default=0, help="--dry-run 생성 시드")
-    ap.add_argument("--adversarial", action="store_true", help="--dry-run 에 사고 유형 주입")
-    args = ap.parse_args(argv)
+    적어만 두고 쓰지 않으면 "설정했는데 무시된다"가 된다 — 설정 파일의 값이
+    아무것도 바꾸지 않는 것은 그 자체로 결함이다.
 
-    # 조기 실패 — 어떤 계산도 하기 전에 죽는다
-    if not args.dry_run and not args.data:
-        ap.error("--data is required unless --dry-run")
+    exec 라 이 프로세스가 그대로 대체된다. 인자와 cwd 가 보존되고, 아직 아무 계산도
+    하지 않았으므로 잃을 것이 없다.
+    """
+    if os.environ.get(_SWITCH_FLAG):
+        return
+    config = _config_path(argv)
+    want = _peek_venv(config) if config else ""
+    if not want:
+        return
 
-    started = time.perf_counter()
-    if args.dry_run:
-        mode = "adversarial" if args.adversarial else "normal"
-        rows = generate(args.rows, seed=args.seed, mode=mode)
-        source = f"synthetic(n={args.rows}, seed={args.seed}, mode={mode})"
+    venv = Path(want).expanduser()
+    if venv.resolve() == Path(sys.prefix).resolve():
+        return                                    # 이미 그 venv 다
+
+    for python in (venv / "bin" / "python", venv / "Scripts" / "python.exe"):
+        if python.exists():
+            break
     else:
-        # 시작도 못 하는 것은 2 다 — 고치고 다시 돌리면 되는 부류 (규격 §3.2)
-        try:
-            rows = load_csv(args.data, args.limit)
-        except OSError as exc:
-            print(f"입력을 열 수 없습니다: {exc}", file=sys.stderr)
-            return 2
-        source = args.data
+        print(f"설정({config})의 paths.venv 에 파이썬이 없습니다: {venv}\n"
+              f"  경로를 고치거나, paths.venv 를 비우고 그 venv 를 activate 한 뒤 "
+              f"실행하세요.", file=sys.stderr)
+        raise SystemExit(2)                       # 시작도 못 했다
 
-    # 진행 상황은 stderr. RUN SUMMARY 가 stdout 이라야 `> log.txt` 가 비지 않는다
-    print(f"실행 조건: {source} / {len(rows):,} rows", file=sys.stderr)
-
-    violations = validate(rows)
-
-    # ── 도메인 로직을 붙이는 자리 ─────────────────────────────────────────
-    metrics = compute_metrics(rows)
-    # ─────────────────────────────────────────────────────────────────────
-
-    print(render(
-        version=read_version(),
-        args=" ".join(argv if argv is not None else sys.argv[1:]) or "(none)",
-        source=source,
-        n_rows=len(rows),
-        n_cols=len(rows[0]) if rows else 0,
-        violations=violations,
-        metrics=metrics,
-        runtime_s=time.perf_counter() - started,
-        status="OK" if not violations else "CONTRACT MISMATCH",
-    ))
-    return 0 if not violations else 1
+    print(f"[venv] {sys.prefix}\n    -> {venv}   (설정 paths.venv)", file=sys.stderr)
+    os.environ[_SWITCH_FLAG] = "1"
+    os.execv(str(python), [str(python), *sys.argv])
 
 
 if __name__ == "__main__":
+    switch_venv(sys.argv[1:])
+
+    from mypkg.__main__ import main
+
     raise SystemExit(main())

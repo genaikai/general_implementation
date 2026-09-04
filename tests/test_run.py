@@ -4,7 +4,7 @@ import csv
 
 import pytest
 
-import run
+from mypkg import __main__ as run
 from mypkg.synth import generate
 
 REQUIRED_LABELS = ["version", "args", "input", "shape", "contract", "metrics", "runtime", "status"]
@@ -89,7 +89,7 @@ def test_version_is_never_blank():
     from mypkg.report import render
 
     out = render(version="  ", args="--x", source="s", n_rows=1, n_cols=1,
-                 violations=[], metrics={}, runtime_s=0.1, status="OK")
+                 violations=[], notes=[], metrics={}, runtime_s=0.1, status="OK")
     assert "version   : unversioned" in out
 
 
@@ -98,9 +98,40 @@ def test_metric_names_align_regardless_of_script(capsys):
     from mypkg.report import _w, render
 
     out = render(version="v1", args="--x", source="s", n_rows=1, n_cols=1,
-                 violations=[], metrics={"평균금액": "1.0", "rows": "1"},
+                 violations=[], notes=[], metrics={"평균금액": "1.0", "rows": "1"},
                  runtime_s=0.1, status="OK")
     lines = out.splitlines()
     metrics = lines[lines.index("metrics   :") + 1:lines.index("metrics   :") + 3]
     starts = {_w(line[: line.rindex(" ") + 1]) for line in metrics}
     assert len(starts) == 1, out
+
+
+def test_venv_switch_reads_paths_venv(tmp_path):
+    """설정에 적은 값이 아무것도 바꾸지 않으면 그건 그 자체로 결함이다 (규격 §3.1)."""
+    import run
+
+    config = tmp_path / "env.yaml"
+    config.write_text("paths:\n  venv: /opt/shared/venv   # 주석\n", encoding="utf-8")
+    assert run._peek_venv(str(config)) == "/opt/shared/venv"
+
+    config.write_text("paths:\n  venv:\n", encoding="utf-8")
+    assert run._peek_venv(str(config)) == "", "비어 있으면 갈아타지 않는다"
+
+
+def test_missing_venv_dies_before_computing(tmp_path):
+    """시작도 못 한 것이므로 2 다. 어떤 계산도 하기 전에 죽는다 (규격 §3.2)."""
+    import run
+
+    config = tmp_path / "env.yaml"
+    config.write_text(f"paths:\n  venv: {tmp_path / 'nope'}\n", encoding="utf-8")
+    with pytest.raises(SystemExit) as exc:
+        run.switch_venv(["--config", str(config)])
+    assert exc.value.code == 2
+
+
+def test_entry_point_only_delegates():
+    """진입점만 src/run.py 에 두고 나머지는 src/<pkg>/ 안에 넣는다 (규격 §3.1)."""
+    import run
+
+    for name in ("load_csv", "compute_metrics", "main"):
+        assert not hasattr(run, name), f"run.py 에 {name} 이 남아 있다 — 패키지로 옮겨라"
