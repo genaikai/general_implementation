@@ -59,6 +59,7 @@ bash .staging/{BB}/scripts/sync.sh v{tag_version}  # 매번 (ex. v0.15)
 | `requirements-dev.txt` | 개발 전용 패키지 (이식 제외) |
 | `configs/env.example.yaml` | 설정 예시. 실값은 `{AA}` 에만 |
 | `TODO.md` · `todo/` | `{AA}` 에서 만들어야 할 것과 그 방법 |
+| `SCAFFOLD.md` | `adopt.sh` 가 대상에 만든다. 사본을 받아든 쪽이 읽는 지도 |
 | `IMPLEMENTATION_SPEC.md` | 규격 전문 — 왜 이런 규칙인지 (이식 제외) |
 | `examples/` | 채운 예시 (이식 제외) |
 | `scripts/adopt.sh` | 위 목록을 대상 저장소로 복사하는 스크립트 (이식 제외) |

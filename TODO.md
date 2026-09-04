@@ -44,11 +44,17 @@ CLI 인자만 쓰기로 했으면 이 항목은 건너뛴다.
 
 ```gitignore
 .staging/          # sync.sh 가 넣어준다
+configs/env.yaml   # ⚠ 운영 실값. 1번에서 방금 채운 그 파일이다
 outputs/           # 산출물
 *.csv              # 실데이터. 확장자를 실제로 쓰는 것에 맞춰 늘린다
 *.parquet
 __pycache__/
 ```
+
+**둘째 줄이 제일 위험하다.** `sync.sh` 가 `configs/env.yaml` 을 만들어 두고 거기에
+접속 정보를 채우라고 한다. 그런데 `sync.sh` 가 `.gitignore` 에 보장하는 것은
+`.staging/` **한 줄뿐**이라, 이 줄을 안 넣으면 채운 실값이 그대로 운영 git 에
+커밋된다 (C3).
 
 `{AA}` 는 운영 git 관리 대상이다. 여기서 한 번 새면 되돌릴 수 없다.
 
