@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .contracts import validate
 from .load import load_csv
-from .pipeline import compute_metrics
+from .pipeline import process_data
 from .report import render
 from .synth import generate
 
@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"실행 조건: {source} / {len(rows):,} rows", file=sys.stderr)
 
     report = validate(rows)
-    metrics = compute_metrics(rows)
+    metrics = process_data(rows)
 
     print(render(
         version=read_version(),

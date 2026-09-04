@@ -19,7 +19,24 @@ class Field:
     used: bool = True               # 처리 로직이 이 필드를 읽나 (규격 §3.2)
 
 
-# ── 프로젝트를 시작할 때 이 부분을 갈아끼운다 ────────────────────────────────
+################################################################################
+# ⭐ TODO: 이 INPUT_SCHEMA를 실제 프로젝트 데이터에 맞게 수정하세요!
+#
+# 각 Field 필드 설명:
+#   - name:     컬럼 이름 (str)
+#   - dtype:    "int" | "float" | "str" | "datetime" | "category"
+#   - nullable: False = 필수, True = 빈값 허용
+#   - allowed:  category 타입일 때만 허용값 튜플 명시 (선택)
+#   - rng:      (min, max) 범위 검사 (선택, float/int만)
+#   - note:     운영 환경에서 발견한 사항 기록 (선택)
+#   - used:     False = 스키마에는 있지만 처리 로직이 읽지 않음 (선택)
+#
+# 예시:
+#   Field("user_id", "str", False, note="UUID 형식")
+#   Field("score", "float", True, rng=(0.0, 100.0))
+#   Field("status", "category", False, allowed=("active", "inactive"))
+#   Field("old_field", "str", True, used=False)  # 무시할 필드
+################################################################################
 INPUT_SCHEMA: tuple[Field, ...] = (
     Field("customer_id", "str", False, note="영문+숫자 12자리"),
     Field("amount", "float", True, rng=(0.0, 1e12)),
@@ -29,7 +46,7 @@ INPUT_SCHEMA: tuple[Field, ...] = (
     # 곧 contract 줄 자체를 안 보게 된다.
     Field("legacy_memo", "str", True, used=False),
 )
-# ─────────────────────────────────────────────────────────────────────────────
+################################################################################
 
 NULL_TOKENS = frozenset({"", "NA", "N/A", "null", "NULL", "None", "-"})
 
