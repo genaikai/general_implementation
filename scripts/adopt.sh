@@ -106,7 +106,8 @@ done
 
 # ── 대상 저장소에서 볼 안내문 ────────────────────────────────────────────────
 # 대상의 README.md 는 그쪽 것이므로 건드리지 않고 SCAFFOLD.md 로 따로 쓴다.
-# {AA} 로 이식되므로(export-ignore 아님) 사본을 받아든 쪽도 이 지도를 본다.
+# 워크플로를 설명하므로 대상의 .gitattributes 에 export-ignore 로 넣는다 (C9) —
+# 개발 저장소에서는 보이고 사본에서는 안 보인다.
 REPO=$(basename "$DEST")
 if [[ -e "$DEST/SCAFFOLD.md" && $FORCE -eq 0 ]]; then
   skipped+=("SCAFFOLD.md")
@@ -195,6 +196,13 @@ requirements.txt 에 섞인 개발 전용 패키지
 자세한 근거는 [\`IMPLEMENTATION_SPEC.md\`](IMPLEMENTATION_SPEC.md) 에 있다.
 EOF
   printf '  + %s\n' "SCAFFOLD.md"
+fi
+
+# SCAFFOLD.md 는 워크플로를 설명한다. 사본은 평범한 프로그램으로 보여야 하므로
+# 대상의 .gitattributes 에 한 줄 보장한다 (C9).
+if [[ -f "$DEST/.gitattributes" ]] && ! grep -q '^SCAFFOLD.md' "$DEST/.gitattributes"; then
+  printf 'SCAFFOLD.md              export-ignore\n' >> "$DEST/.gitattributes"
+  printf '  ~ %s\n' ".gitattributes  (SCAFFOLD.md export-ignore 추가)"
 fi
 
 echo

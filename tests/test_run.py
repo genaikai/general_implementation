@@ -1,4 +1,4 @@
-"""전 구간 스모크. 진입점이 끝까지 돌고 RUN SUMMARY 를 찍는지 본다 (규격 §3.2)."""
+"""전 구간 스모크. 진입점이 끝까지 돌고 RUN SUMMARY 를 찍는지 본다."""
 
 import csv
 
@@ -49,7 +49,7 @@ def test_summary_is_printed_even_on_mismatch(tmp_path, capsys):
     assert "RUN SUMMARY" in out and "status    : CONTRACT MISMATCH" in out
 
 
-# ── log_analysis 에서 배운 규칙들 (규격 §3.2) ────────────────────────────────
+# ── 리포트가 지켜야 하는 것들 ─────────────────────────────────────────────────
 
 def test_exit_codes_match_the_scripting_contract(tmp_path, capsys):
     """0=정상 / 1=돌았지만 온전치 않다 / 2=시작도 못 했다.
@@ -107,7 +107,7 @@ def test_metric_names_align_regardless_of_script(capsys):
 
 
 def test_venv_switch_reads_paths_venv(tmp_path):
-    """설정에 적은 값이 아무것도 바꾸지 않으면 그건 그 자체로 결함이다 (규격 §3.1)."""
+    """설정에 적은 값이 아무것도 바꾸지 않으면 그건 그 자체로 결함이다."""
     import run
 
     config = tmp_path / "env.yaml"
@@ -119,7 +119,7 @@ def test_venv_switch_reads_paths_venv(tmp_path):
 
 
 def test_missing_venv_dies_before_computing(tmp_path):
-    """시작도 못 한 것이므로 2 다. 어떤 계산도 하기 전에 죽는다 (규격 §3.2)."""
+    """시작도 못 한 것이므로 2 다. 어떤 계산도 하기 전에 죽는다."""
     import run
 
     config = tmp_path / "env.yaml"
@@ -130,7 +130,7 @@ def test_missing_venv_dies_before_computing(tmp_path):
 
 
 def test_entry_point_only_delegates():
-    """진입점만 src/run.py 에 두고 나머지는 src/<pkg>/ 안에 넣는다 (규격 §3.1)."""
+    """진입점만 src/run.py 에 두고 나머지는 src/<pkg>/ 안에 넣는다."""
     import run
 
     for name in ("load_csv", "process_data", "main"):

@@ -1,6 +1,6 @@
-"""RUN SUMMARY 블록 (규격 §3.2).
+"""RUN SUMMARY 블록.
 
-파일 반출이 불가능하므로 화면이 유일한 출력이고, 이 함수가 곧 리포트다.
+콘솔이 유일한 출력이고, 이 함수가 곧 리포트다.
 한 줄에 한 항목, 80칸 이내 — 사람이 손으로 옮겨 적는 것이 전제다.
 실데이터의 개별 값·식별자는 절대 찍지 않는다.
 """
@@ -40,7 +40,7 @@ def render(
     status: str,
 ) -> str:
     n_ok = max(0, n_cols - len(violations))
-    # 빈칸이면 옮겨 적을 때 통째로 빠진다. 모르면 모른다고 적는다 (규격 §3.2).
+    # 빈칸이면 옮겨 적을 때 통째로 빠진다. 모르면 모른다고 적는다.
     version = version.strip() or "unversioned"
     lines = [
         "=" * WIDTH,
@@ -54,7 +54,7 @@ def render(
     ]
     lines += [f"  - {v}" for v in violations]
     # 노트는 "어긋났지만 처리 로직이 안 읽는다" — 위반과 섞으면 매 실행마다 뜨는
-    # 줄이 생기고, 사람은 곧 contract 줄 자체를 안 보게 된다 (규격 §3.2)
+    # 줄이 생기고, 사람은 곧 contract 줄 자체를 안 보게 된다
     if notes:
         lines.append(f"notes     : {len(notes)} (판정에 영향 없음)")
         lines += [f"  - {n}" for n in notes]

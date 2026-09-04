@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""진입점 (규격 §3.1).
+"""진입점.
 
-    python {BB}/src/run.py --data <csv> [--limit N]
-    python {BB}/src/run.py --dry-run [--adversarial]
+    python src/run.py --data <csv> [--limit N]
+    python src/run.py --dry-run [--adversarial]
 
-파일을 직접 실행하면 sys.path[0] 이 {BB}/src 가 되므로 mypkg 가 그대로 import 된다.
+파일을 직접 실행하면 sys.path[0] 이 src/ 가 되므로 mypkg 가 그대로 import 된다.
 PYTHONPATH 도, 공용 venv 에 대한 설치도 필요 없다 — 공용 venv 에 우리 패키지를 남기지
-않아야 {AA}/{BB} 통째 교체가 무연산이 된다.
+않아야 디렉터리를 통째로 갈아끼워도 아무 뒤처리가 없다.
 
 이 파일이 하는 일은 둘뿐이다: venv 를 갈아타는 것과 본체로 넘기는 것.
 나머지는 전부 mypkg/ 안에 있다.
@@ -33,7 +33,7 @@ def _peek_venv(config: str) -> str:
     """설정에서 paths.venv 만 뽑는다.
 
     의존성을 늘리지 않으려고 손으로 읽는다 — 2칸 들여쓰기 매핑을 가정하며,
-    이 한 키를 보려고 PyYAML 을 requirements.txt 에 넣을 이유가 없다 (C7).
+    이 한 키를 보려고 PyYAML 을 requirements.txt 에 넣을 이유가 없다.
     """
     try:
         text = Path(config).expanduser().read_text(encoding="utf-8")
@@ -54,7 +54,7 @@ def _peek_venv(config: str) -> str:
 
 
 def switch_venv(argv: list[str]) -> None:
-    """설정에 적은 파이썬으로 갈아타고 같은 명령을 다시 시작한다 (규격 §3.1).
+    """설정에 적은 파이썬으로 갈아타고 같은 명령을 다시 시작한다.
 
     공용 venv 가 여럿인 환경에서는 activate 를 잊거나 다른 것을 켠 채로 도는 일이
     흔하고, 그건 실패가 아니라 다른 결과로 나타난다.

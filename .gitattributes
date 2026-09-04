@@ -1,3 +1,8 @@
+# 워크플로를 드러내는 것들. 사본은 평범한 프로그램으로 보여야 한다 (C9)
+README.md                export-ignore
+scripts/sync.sh          export-ignore
+tests/test_spec_compliance.py export-ignore
+
 tools/                   export-ignore
 requirements-dev.txt     export-ignore
 docs/insights/           export-ignore

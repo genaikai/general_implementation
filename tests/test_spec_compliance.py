@@ -76,7 +76,55 @@ def test_ignore_rule_is_an_allowlist_not_a_namelist():
 
 
 def test_src_does_not_import_dev_tools():
-    """import 방향은 한쪽이다. 위치보다 이 규칙이 실제 사고를 막는다 (규격 §1.4)."""
+    """import 방향은 한쪽이다. 위치보다 이 규칙이 실제 사고를 막는다."""
     for path in (ROOT / "src").rglob("*.py"):
         text = path.read_text()
         assert "import tools" not in text and "from tools" not in text, path
+
+
+# ── C9: 사본은 평범한 프로그램으로 보여야 한다 ──────────────────────────────
+
+# 파일 단위 제외로는 코드 주석 안의 어휘를 못 뺀다 — 코드는 가야 하기 때문이다.
+# 그래서 내용까지 본다. sync.sh 도 같은 것을 보지만 그건 태그를 낸 뒤다.
+WORKFLOW_WORDS = (
+    "개발 장비", "운영 장비", "운영 환경", "이식", "반입", "스캐폴드",
+    "규격", "인사이트", "반출", "{AA}", "{BB}", "staging", "sync.sh", "§",
+)
+
+
+def test_copy_carries_no_workflow_vocabulary(shipped):
+    """사본의 어느 파일에도 워크플로를 드러내는 낱말이 없어야 한다.
+
+    HEAD 를 본다 — 커밋한 것이 곧 태그가 될 것이기 때문이다. 작업 트리의 변경은
+    아직 안 잡히지만, 그건 sync.sh 가 태그 시점에 다시 본다.
+    """
+    out = subprocess.run(["git", "archive", "HEAD"], cwd=ROOT,
+                         capture_output=True, check=True).stdout
+    listing = subprocess.run(["tar", "-tf", "-"], input=out,
+                             capture_output=True, check=True).stdout.decode()
+
+    hits: list[str] = []
+    for name in (n for n in listing.splitlines() if n and not n.endswith("/")):
+        blob = subprocess.run(["git", "show", f"HEAD:{name}"], cwd=ROOT,
+                              capture_output=True).stdout.decode("utf-8", "replace")
+        for lineno, line in enumerate(blob.splitlines(), 1):
+            for word in WORKFLOW_WORDS:
+                if word in line:
+                    hits.append(f"{name}:{lineno}: {line.strip()[:70]}")
+                    break
+    assert not hits, "사본에 워크플로 어휘가 남았다:\n" + "\n".join(hits)
+
+
+def test_workflow_documents_do_not_ship(shipped):
+    """워크플로를 설명하는 문서는 통째로 빠진다."""
+    for path in ("README.md", "scripts/sync.sh", "tests/test_spec_compliance.py",
+                 "SCAFFOLD.md", "IMPLEMENTATION_SPEC.md"):
+        assert path not in shipped, path
+
+
+def test_sync_sh_checks_the_vocabulary_itself():
+    """태그를 낸 뒤에도 기계가 한 번 더 본다. 사람 눈에만 맡기지 않는다."""
+    body = (ROOT / "scripts" / "sync.sh").read_text(encoding="utf-8")
+    assert "C9" in body
+    for word in ("개발 장비", "이식", "{AA}", "sync\\.sh"):
+        assert word in body, word

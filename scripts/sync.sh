@@ -97,6 +97,13 @@ inspect_tree() {
     warn "이메일·커밋 트레일러:"; printf '%s\n' "$hits" >&2; bad=1
   fi
 
+  # 사본은 평범한 프로그램으로 보여야 한다 (C9). 코드 주석·독스트링에 워크플로
+  # 어휘가 남으면 파일 단위 제외로는 못 뺀다 — 코드는 가야 하기 때문이다.
+  hits=$(scan "$d" '개발 장비|운영 장비|운영 환경|이식|반입|스캐폴드|규격|인사이트|반출|\{AA\}|\{BB\}|규격 §|sync\.sh|\.staging')
+  if [[ -n "$hits" ]]; then
+    warn "사본에 워크플로 어휘가 남아있음 (C9):"; printf '%s\n' "$hits" >&2; bad=1
+  fi
+
   return $bad
 }
 
