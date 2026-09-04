@@ -41,105 +41,66 @@ bash .staging/{BB}/scripts/sync.sh v{tag_version}  # 매번 (ex. v0.15)
 
 ---
 
-# 어디에 무엇을 적나
+# 어디에 코드를 짜나
 
-## 처음 시작할 때는 두 파일만 고친다
+## `src/<pkg>/` 안에만 짠다
 
-```
-1.  src/<pkg>/contracts.py   입력이 어떻게 생겼는지 적는다
-2.  src/<pkg>/pipeline.py    그걸로 뭘 계산할지 짠다
-```
+| 파일 | 언제 고치나 |
+|---|---|
+| `contracts.py` | 입력이 어떻게 생겼는지 적는다 — **여기부터** |
+| `pipeline.py` | 그걸로 뭘 계산할지 짠다 — **보통 여기까지가 전부** |
+| `load.py` | CSV 말고 다른 포맷을 읽어야 할 때 |
+| `report.py` | 화면에 찍을 항목을 바꿀 때 |
+| `__main__.py` | CLI 인자를 더할 때 |
+| `synth.py` | 운영에서 본 데이터 사고를 재현할 때 |
 
-나머지는 그대로 둬도 돌아간다. `contracts.py` 를 고치면 **가짜 데이터·검증·리포트·
-테스트가 전부 따라온다** — 그게 이 구조의 요점이다.
-
-```python
-# 1. contracts.py — 이름 / 타입 / 널 허용 / 허용값 / 범위
-INPUT_SCHEMA = (
-    Field("customer_id", "str", False, note="영문+숫자 12자리"),
-    Field("amount", "float", True, rng=(0.0, 1e12)),
-    Field("grade", "category", True, allowed=("A", "B", "C")),
-)
-
-# 2. pipeline.py — 이 함수 안을 실제 계산으로 갈아끼운다
-#    (지금은 수치 필드의 평균·널 비율을 내는 자리표시자다)
-def compute_metrics(rows: list[dict]) -> dict:
-    ...
-```
-
-돌려주는 dict 가 그대로 리포트의 `metrics` 줄이 된다. **지표 이름은 사이클 사이에
-바꾸지 않는다** — 이름이 바뀌면 지난 실험 숫자와 대조할 수 없고, 결과 파일을 못
-가져오는 환경에서 그건 되돌릴 수 없는 손실이다.
+**처음엔 위 두 개만 고치면 돈다.** `contracts.py` 를 고치면 가짜 데이터·검증·리포트·
+테스트가 전부 따라온다.
 
 ```bash
-python src/run.py --dry-run   # 가짜 데이터로 끝까지 도는지 확인
+python src/run.py --dry-run   # 데이터 파일 없이 끝까지 도는지 확인
 ```
 
-> **채운 예시를 보려면 [`examples/`](examples/) 로.** 주문 로그를 다루는 프로젝트로
-> 두 파일을 채우면 어떻게 되는지, 계약이 깨질 때 화면이 어떻게 보이는지가 실제
-> 출력과 함께 있다.
+LLM·외부 API 를 쓰는 개발 도구는 `src/` 가 아니라 **`tools/`** 에 둔다.
+채운 예시는 [`examples/`](examples/) 에 있다.
 
-## 그다음, 하려는 일에 따라
+## 나머지는 `sync.sh` 가 한다
 
-| 하려는 일 | 고칠 파일 |
+이식할 때 이 여섯을 **기계적으로** 막는다. 태그 낼 때 한 번, 저쪽에서 또 한 번.
+
+```
+개발 전용 파일이 넘어가는 것    tools/  CLAUDE.md  .gitattributes  requirements-dev.txt
+데이터 파일                    .csv  .parquet  .pkl …
+src/ 안의 anthropic·openai import   (C8 — 저쪽에서 죽는다)
+requirements.txt 에 섞인 개발 전용 패키지
+개인 머신 절대 경로            /Users/…  /home/…
+이메일·커밋 트레일러
+```
+
+작업 폴더 만들기, `VERSION` 기록, 설정 파일 복사도 `sync.sh` 가 한다.
+
+## 사람이 해야 하는 건 둘
+
+**1. `tools/` 말고 새로 만든 개발 전용 파일은 `.gitattributes` 에 한 줄 추가한다.**
+`sync.sh` 의 금지 목록은 고정이라 처음 보는 이름은 못 잡는다.
+
+> 줄 끝 주석을 쓰지 마라. git 이 지원하지 않아 `tools/ export-ignore  # 설명` 은
+> **그 줄이 통째로, 조용히 무시된다.** 설명은 앞 줄에 단다.
+
+**2. `sync.sh` 가 못 잡는 둘은 눈으로 본다.**
+
+| | |
 |---|---|
-| 입력에 컬럼을 더하거나 타입을 고친다 | `src/<pkg>/contracts.py` |
-| 계산·분석 로직을 짠다 | `src/<pkg>/pipeline.py` |
-| CSV 말고 다른 포맷을 읽는다 | `src/<pkg>/load.py` |
-| CLI 인자를 새로 만든다 | `src/<pkg>/__main__.py` |
-| 화면에 찍을 항목을 바꾼다 | `src/<pkg>/report.py` |
-| 운영에서 본 데이터 사고를 재현한다 | `src/<pkg>/synth.py` 의 `_corrupt()` |
-| LLM 을 쓰는 개발 도구를 만든다 | `tools/` |
-| 운영 환경에 부탁할 일을 적는다 | `TODO.md` |
-| 운영 환경에서 배운 것을 적는다 | `docs/insights/` → 굳으면 `tests/` |
+| 리포트에 실데이터 값 찍기 | 화면이 유일한 출력이라 사람이 베낀다. 거기 실제 값이 실리면 그게 유출이다 (C3) |
+| 임계값·컬럼명을 코드에 박기 | 운영 환경에서는 한 줄도 못 고친다. 전부 CLI 인자로 (§1.3) |
 
-## 절대 하지 말 것 넷
+## 문서는 어디에
 
-이 넷이 이 구조가 존재하는 이유다. 나머지 규칙은 여기서 따라나온다.
-
-**1. 데이터 파일을 저장소에 두지 마라.** 테스트 픽스처도 안 된다.
-`synth.py` 의 `generate()` 가 계약을 읽어 런타임에 만든다.
-> `.gitignore` 는 `git add -f` 한 번에 뚫리지만, **없는 파일은 올라갈 수 없다.**
-
-**2. 바뀔 만한 값을 코드에 박지 마라.** 경로·임계값·날짜 범위·컬럼명은 전부 CLI 인자다.
-> 운영 환경에서는 **한 줄도 못 고친다.** "이 값만 고치면 되는데" 하는 순간이 오면
-> 고치지 말고 "이 값이 인자에 없었다"를 적어서 들고 나온다.
-
-**3. `src/` 안에서 LLM·외부 API 를 부르지 마라.** 개발 도구는 `tools/` 에 두고,
-`tools/` 는 `src/` 를 읽어도 되지만 **반대는 안 된다.**
-> 운영 환경에서는 그 호출이 전부 실패한다. 키를 지운 채 테스트가 통과하면
-> 의존이 없다는 것이 증명된다: `env -u ANTHROPIC_API_KEY python -m pytest`
-
-**4. 리포트에 실데이터 값을 찍지 마라.** 타입·개수·컬럼명까지만.
-> 화면이 유일한 출력이라 사람이 손으로 베낀다. 거기 실제 값이 실리면 그게 유출 경로다.
-
-## 무엇이 넘어가고 무엇이 안 넘어가나
-
-```
-✔ 넘어간다   src/  tests/  configs/env.example.yaml  requirements.txt
-             README.md  TODO.md  todo/  docs/  scripts/sync.sh
-
-✗ 안 넘어간다  tools/            LLM 을 쓰는 개발 도구
-              requirements-dev.txt
-              docs/insights/     운영에서 가져온 기록. 되돌아가지 않는다
-              examples/          채운 예시. 개발 장비에서 배우는 용도
-              IMPLEMENTATION_SPEC.md   규격 전문
-              CLAUDE.md  .claude/  .github/  .gitattributes
-```
-
-`.gitattributes` 가 정한다. 새로 만든 개발 전용 파일은 **여기에 한 줄 추가**해야 한다.
-
-> **줄 끝 주석을 쓰지 마라.** git 이 지원하지 않아서 `tools/ export-ignore  # 설명` 은
-> 그 줄이 통째로 무시되고, **조용히** 무시된다. 설명은 앞 줄에 단다.
-
-## 문서 넷은 성격이 다르다
-
-| | 무엇을 적나 |
+| | |
 |---|---|
-| `README.md` | 이 파일. 사본을 받아든 쪽도 읽는다 |
-| `TODO.md` | `{AA}` 에서 **만들어야 할 것의 목록**. 방법은 안 적는다 |
-| `todo/*.md` | 그것들을 **어떻게 만드나** |
-| `docs/insights/` | 운영 환경에서 **본 것**. 실험 직후에 적는다 |
+| `TODO.md` | `{AA}` 에서 **만들어야 할 것**의 목록 (설정 채우기, 실행 스크립트 …) |
+| `todo/*.md` | 그것들을 어떻게 만드나 |
+| `docs/insights/` | 운영 환경에서 **본 것**. 실험 직후에 적는다. 되돌아가지 않는다 |
 
 `IMPLEMENTATION_SPEC.md` 에 **왜 이런 규칙인지**가 전부 있다. 규칙이 불편하면 거기
 적힌 제약(C1–C8)이 아직 유효한지 먼저 확인하라.
