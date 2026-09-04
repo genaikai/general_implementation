@@ -75,6 +75,10 @@ def compute_metrics(rows: list[dict]) -> dict:
 python src/run.py --dry-run   # 가짜 데이터로 끝까지 도는지 확인
 ```
 
+> **채운 예시를 보려면 [`examples/`](examples/) 로.** 주문 로그를 다루는 프로젝트로
+> 두 파일을 채우면 어떻게 되는지, 계약이 깨질 때 화면이 어떻게 보이는지가 실제
+> 출력과 함께 있다.
+
 ## 그다음, 하려는 일에 따라
 
 | 하려는 일 | 고칠 파일 |
@@ -118,6 +122,7 @@ python src/run.py --dry-run   # 가짜 데이터로 끝까지 도는지 확인
 ✗ 안 넘어간다  tools/            LLM 을 쓰는 개발 도구
               requirements-dev.txt
               docs/insights/     운영에서 가져온 기록. 되돌아가지 않는다
+              examples/          채운 예시. 개발 장비에서 배우는 용도
               IMPLEMENTATION_SPEC.md   규격 전문
               CLAUDE.md  .claude/  .github/  .gitattributes
 ```

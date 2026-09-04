@@ -1,6 +1,8 @@
 tools/                   export-ignore
 requirements-dev.txt     export-ignore
 docs/insights/           export-ignore
+examples/                export-ignore
+tests/test_examples.py   export-ignore
 .claude/                 export-ignore
 .cursor/                 export-ignore
 .mcp.json                export-ignore

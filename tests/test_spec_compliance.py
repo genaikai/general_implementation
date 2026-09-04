@@ -55,7 +55,13 @@ def test_gitattributes_has_no_trailing_comments():
 
     조용히 무시되므로 archive 를 풀어보기 전에는 알 수 없다. 그게 사고가 되는 방식이다.
     """
-    for lineno, line in enumerate((ROOT / ".gitattributes").read_text().splitlines(), 1):
+    path = ROOT / ".gitattributes"
+    if not path.exists():
+        # 자기 자신도 export-ignore 라 이식된 사본에는 없다. 검사할 대상이 없는 것이지
+        # 실패가 아니다 — 이 검사는 개발 장비에서만 뜻이 있다.
+        pytest.skip("이식된 사본이다 (.gitattributes 없음)")
+
+    for lineno, line in enumerate(path.read_text().splitlines(), 1):
         body = line.strip()
         if not body or body.startswith("#"):
             continue
