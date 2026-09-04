@@ -31,15 +31,20 @@ def shipped() -> set[str]:
 
 
 def test_todo_ships_with_the_copy(shipped):
-    """이식만으로 돌지 않는다. 저쪽에서 무엇이 남았는지 알 방법이 이것뿐이다 (규격 §3.0)."""
+    """받아서 바로 돌지 않는다. 저쪽에서 무엇을 준비해야 하는지 알 방법이 이것뿐이다."""
     assert "TODO.md" in shipped
-    assert any(p.startswith("todo/") for p in shipped), "TODO.md 가 가리키는 규격도 가야 한다"
+    assert any(p.startswith("todo/") for p in shipped), "TODO.md 가 가리키는 문서도 가야 한다"
 
 
-def test_readme_ships_because_the_spec_does_not(shipped):
-    """IMPLEMENTATION_SPEC.md 는 export-ignore 다. 저쪽이 읽을 것은 README 뿐이다."""
-    assert "README.md" in shipped
-    assert "IMPLEMENTATION_SPEC.md" not in shipped
+def test_the_copy_reads_as_an_ordinary_program(shipped):
+    """사본에 남는 문서는 이 프로그램을 돌리는 법뿐이다 (C9).
+
+    README 와 규격 문서는 왜 이런 구조인지를 설명한다 — 그건 개발 저장소에만 남는다.
+    저쪽에서 필요한 것(돌리기 전에 준비할 것)은 TODO.md 와 todo/ 가 맡는다.
+    """
+    assert "TODO.md" in shipped
+    for path in ("README.md", "IMPLEMENTATION_SPEC.md"):
+        assert path not in shipped, path
 
 
 def test_development_only_things_do_not_ship(shipped):
