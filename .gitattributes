@@ -1,6 +1,6 @@
 tools/                   export-ignore
 requirements-dev.txt     export-ignore
-docs/                    export-ignore
+docs/insights/           export-ignore
 .claude/                 export-ignore
 CLAUDE.md                export-ignore
 .github/                 export-ignore
