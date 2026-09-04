@@ -3,6 +3,7 @@ requirements-dev.txt     export-ignore
 docs/insights/           export-ignore
 examples/                export-ignore
 tests/test_examples.py   export-ignore
+tests/test_adopt.py      export-ignore
 .claude/                 export-ignore
 .cursor/                 export-ignore
 .mcp.json                export-ignore
@@ -11,5 +12,6 @@ CLAUDE.md                export-ignore
 .github/                 export-ignore
 IMPLEMENTATION_SPEC.md   export-ignore
 scripts/sync_appendix.py export-ignore
+scripts/adopt.sh         export-ignore
 scripts/hooks/           export-ignore
 .gitattributes           export-ignore

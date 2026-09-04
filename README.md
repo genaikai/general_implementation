@@ -61,8 +61,24 @@ bash .staging/{BB}/scripts/sync.sh v{tag_version}  # 매번 (ex. v0.15)
 | `TODO.md` · `todo/` | `{AA}` 에서 만들어야 할 것과 그 방법 |
 | `IMPLEMENTATION_SPEC.md` | 규격 전문 — 왜 이런 규칙인지 (이식 제외) |
 | `examples/` | 채운 예시 (이식 제외) |
+| `scripts/adopt.sh` | 위 목록을 대상 저장소로 복사하는 스크립트 (이식 제외) |
+
+# 가져가기
+
+기존 저장소에 얹으려면 스크립트가 대신 해준다. **이미 있는 파일은 건드리지 않고**
+끝에 무엇을 손으로 합쳐야 하는지 알려준다.
+
+```bash
+bash scripts/adopt.sh ~/work/rule-based-tagging          # 패키지 이름은 폴더에서
+bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # 직접 줄 수도
+```
+
+`mypkg` 를 새 이름으로 바꿔서 복사하고, 대상에 `SCAFFOLD.md`(이 표와 단계)를 만든다.
+덮어쓰려면 `--force`.
 
 # 다음 단계
+
+손으로 한다면:
 
 ```
 1. src/ 를 통째로 가져와 mypkg 를 프로젝트 이름으로 바꾼다
