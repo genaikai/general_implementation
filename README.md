@@ -18,31 +18,6 @@
 
 ---
 
-## 시작하기 (개발 장비)
-
-```bash
-git clone <이 저장소> my-project && cd my-project
-rm -rf .git && git init          # 히스토리는 가져가지 않는다
-
-git grep -l mypkg                # 패키지 이름을 바꾼다
-git mv src/mypkg src/<이름>       #   src/run.py, tests/ 안의 import 도 함께
-
-$EDITOR src/<이름>/contracts.py   # INPUT_SCHEMA 를 실제 입력 형태로 갈아끼운다
-```
-
-`INPUT_SCHEMA` 하나만 고치면 합성 데이터·검증·리포트가 전부 따라온다. 그게 이 구조의
-요점이다 — **입력 형태에 대해 아는 것이 코드 안 한 곳에만 있다.**
-
-```bash
-python -m pip install -r requirements-dev.txt
-python src/run.py --dry-run                    # 합성 데이터로 전 구간 스모크
-python src/run.py --dry-run --adversarial      # 계약 위반을 일부러 섞어서
-env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY python -m pytest
-```
-
-마지막 줄이 중요하다. **API 키를 지운 채 테스트가 전부 통과해야** 운영 환경에서 돌 수
-있다는 것이 기계적으로 증명된다.
-
 ## 이식 (운영 환경)
 
 ```bash
