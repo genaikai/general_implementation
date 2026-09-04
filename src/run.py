@@ -6,7 +6,12 @@
 
 파일을 직접 실행하면 sys.path[0] 이 {BB}/src 가 되므로 mypkg 가 그대로 import 된다.
 PYTHONPATH 도, 공용 venv 에 대한 설치도 필요 없다.
-바뀔 만한 값은 전부 CLI 인자로 받는다 (규격 §1.3) — 사내에서는 코드를 고칠 수 없다.
+바뀔 만한 값은 전부 CLI 인자로 받는다 (규격 §1.3) — 운영 환경에서는 코드를 고칠 수 없다.
+
+종료 코드 (규격 §3.2) — 실행 스크립트가 여기에 분기한다:
+    0  정상
+    1  돌았지만 온전치 않다 (계약 위반). 재시도해도 같다
+    2  시작도 못 했다 (인자 누락·입력 없음). 고치고 다시 돌린다
 """
 
 import argparse
@@ -74,8 +79,16 @@ def main(argv: list[str] | None = None) -> int:
         rows = generate(args.rows, seed=args.seed, mode=mode)
         source = f"synthetic(n={args.rows}, seed={args.seed}, mode={mode})"
     else:
-        rows = load_csv(args.data, args.limit)
+        # 시작도 못 하는 것은 2 다 — 고치고 다시 돌리면 되는 부류 (규격 §3.2)
+        try:
+            rows = load_csv(args.data, args.limit)
+        except OSError as exc:
+            print(f"입력을 열 수 없습니다: {exc}", file=sys.stderr)
+            return 2
         source = args.data
+
+    # 진행 상황은 stderr. RUN SUMMARY 가 stdout 이라야 `> log.txt` 가 비지 않는다
+    print(f"실행 조건: {source} / {len(rows):,} rows", file=sys.stderr)
 
     violations = validate(rows)
 

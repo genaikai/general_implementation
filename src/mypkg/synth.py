@@ -29,9 +29,9 @@ def _value(field: Field, rng: random.Random) -> str:
 
 
 def _corrupt(row: dict, rng: random.Random) -> dict:
-    """사내에서만 터지는 사고 유형을 주입한다 (규격 §1.2, 적대적 모드).
+    """운영 환경에서만 터지는 사고 유형을 주입한다 (규격 §1.2, 적대적 모드).
 
-    새 유형이 사내에서 발견되면 인사이트로 가지고 나와 여기에 추가한다.
+    새 유형이 운영 환경에서 발견되면 인사이트로 가지고 나와 여기에 추가한다.
     """
     field = rng.choice(INPUT_SCHEMA)
     kind = rng.randrange(5)

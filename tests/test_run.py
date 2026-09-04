@@ -47,3 +47,60 @@ def test_summary_is_printed_even_on_mismatch(tmp_path, capsys):
     assert run.main(["--data", str(path)]) == 1
     out = capsys.readouterr().out
     assert "RUN SUMMARY" in out and "status    : CONTRACT MISMATCH" in out
+
+
+# ── log_analysis 에서 배운 규칙들 (규격 §3.2) ────────────────────────────────
+
+def test_exit_codes_match_the_scripting_contract(tmp_path, capsys):
+    """0=정상 / 1=돌았지만 온전치 않다 / 2=시작도 못 했다.
+
+    1 과 2 를 가르는 기준은 "계산을 시작했나"다. 2 는 고치고 다시 돌리면 되고,
+    1 은 이미 돈 것이라 재시도해도 같다 — 실행 스크립트의 분기가 여기 걸린다.
+    """
+    assert run.main(["--dry-run", "--rows", "200"]) == 0
+    assert run.main(["--data", str(tmp_path / "없다.csv")]) == 2
+
+    bad = tmp_path / "bad.csv"
+    bad.write_text("customer_id,amount,grade\n,not-a-number,Z\n", encoding="utf-8")
+    assert run.main(["--data", str(bad)]) == 1
+
+
+def test_summary_goes_to_stdout_and_progress_to_stderr(capsys):
+    """RUN SUMMARY 가 stderr 로 새면 `> log.txt` 로 남긴 파일이 비어 있다."""
+    run.main(["--dry-run", "--rows", "200"])
+    captured = capsys.readouterr()
+    assert "RUN SUMMARY" in captured.out
+    assert "RUN SUMMARY" not in captured.err
+    assert "실행 조건" in captured.err
+    assert "실행 조건" not in captured.out
+
+
+def test_summary_lines_fit_eighty_columns(capsys):
+    """글자 수가 아니라 표시 폭이다. 한글은 두 칸이라 len() 으로 자르면 끊긴다."""
+    from mypkg.report import _w
+
+    run.main(["--dry-run", "--rows", "500", "--adversarial"])
+    for line in capsys.readouterr().out.splitlines():
+        assert _w(line) <= 80, line
+
+
+def test_version_is_never_blank():
+    """빈칸이면 옮겨 적을 때 통째로 빠지고, 빠진 줄은 없었던 것이 된다."""
+    from mypkg.report import render
+
+    out = render(version="  ", args="--x", source="s", n_rows=1, n_cols=1,
+                 violations=[], metrics={}, runtime_s=0.1, status="OK")
+    assert "version   : unversioned" in out
+
+
+def test_metric_names_align_regardless_of_script(capsys):
+    """한글 지표명이 섞여도 값의 시작 칸이 같아야 옮겨 적을 때 안 헷갈린다."""
+    from mypkg.report import _w, render
+
+    out = render(version="v1", args="--x", source="s", n_rows=1, n_cols=1,
+                 violations=[], metrics={"평균금액": "1.0", "rows": "1"},
+                 runtime_s=0.1, status="OK")
+    lines = out.splitlines()
+    metrics = lines[lines.index("metrics   :") + 1:lines.index("metrics   :") + 3]
+    starts = {_w(line[: line.rindex(" ") + 1]) for line in metrics}
+    assert len(starts) == 1, out
