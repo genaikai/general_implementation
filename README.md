@@ -32,10 +32,18 @@
 
 ```bash
 cd {AA}/{target_path}
-git clone <원격> .staging/{BB}           # 최초 1회만
-bash .staging/{BB}/scripts/sync.sh v{tag_version}  # 매번 (ex. v0.15)
+git clone <원격> .staging/app            # 최초 1회만
+bash .staging/app/scripts/sync.sh v{tag_version}   # 매번 (ex. v0.15)
 ```
-위 실행 이후, {AA}/{target_path}/{BB} 위치로 해당 tag 버전에 해당하는 코드가 생성/업데이트 된다.
+위 실행 이후, `{AA}/{target_path}/app` 위치로 해당 tag 버전의 코드가 생성/업데이트 된다.
+
+**clone 할 디렉터리 이름이 곧 사본 폴더 이름이다.** `sync.sh` 는 자기 위치에서 그
+이름을 유도하므로, `.staging/app` 으로 clone 하면 사본도 `app/` 이 된다.
+
+> **작업 폴더와 같은 이름으로 clone 하지 마라.** `{AA}/DD` 에서 `.staging/DD` 로
+> clone 하면 사본이 `{AA}/DD/DD` 가 되어 `cd` 를 두 번 해야 하고, 로그와 문서에서
+> 어느 쪽 `DD` 인지 구분이 안 된다. `app`·`core`·`engine` 처럼 겹치지 않는 이름을
+> 쓴다 — 저장소 이름과 달라도 상관없다.
 
 
 

@@ -231,9 +231,18 @@ cd {BB} && bash scripts/sync.sh v0.2
 
 # ② 운영 환경 — {AA} 루트에서. 최초든 갱신이든 같은 명령이고 멱등하다
 cd {AA}
-git clone <remote> .staging/{BB}           # 최초 1회만
-bash .staging/{BB}/scripts/sync.sh v0.2    # 매번
+git clone <remote> .staging/app            # 최초 1회만
+bash .staging/app/scripts/sync.sh v0.2     # 매번
 ```
+
+**clone 할 디렉터리 이름이 사본 폴더 이름을 정한다.** `sync.sh` 는 자기 위치
+(`{AA}/.staging/<이름>/scripts/sync.sh`)에서 그 이름을 유도해 `{AA}/<이름>` 에 푼다.
+`{BB}` 의 실제 저장소 이름과 같을 필요가 없다.
+
+> **작업 폴더와 같은 이름을 쓰지 마라.** `{AA}` 가 `.../DD` 인데 `.staging/DD` 로
+> clone 하면 사본이 `{AA}/DD/DD` 가 된다. 동작은 정상이지만 `cd` 를 두 번 해야 하고,
+> 상대 경로를 어느 `DD` 에서 푸는지 사람이 헷갈린다 — 사본 안에서 실행하면
+> `outputs/` 가 사본 안에 생기고 다음 교체 때 사라진다.
 
 **같은 점검이 두 번 도는 것이 설계다.** ①에서 걸리면 태그를 다시 내면 그만이고,
 ②에서 걸리면 이미 운영 환경까지 간 뒤라 사이클을 하나 버린다. ①을 잊어도 ②가 막아주지만,

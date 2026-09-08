@@ -63,7 +63,11 @@ def test_guide_is_written_with_the_real_package_name(adopted):
     guide = (adopted / "SCAFFOLD.md").read_text(encoding="utf-8")
     assert "src/rule_based_tagging/pipeline.py" in guide
     assert "<pkg>" not in guide
-    assert ".staging/rule-based-tagging/scripts/sync.sh" in guide
+
+    # 사본 폴더 이름은 clone 할 디렉터리 이름에서 온다. 작업 폴더와 같은 이름으로
+    # clone 하면 {AA}/DD/DD 처럼 중첩되어 사람이 어느 쪽인지 헷갈린다.
+    assert ".staging/app" in guide, "겹치지 않는 이름으로 clone 하라고 알려야 한다"
+    assert ".staging/rule-based-tagging" not in guide
 
 
 def test_existing_files_are_not_clobbered(tmp_path):

@@ -154,8 +154,9 @@ cat > "$DEST/SCAFFOLD.md" <<EOF
 4. git tag v1.0.0
    bash scripts/sync.sh v1.0.0                 ← preflight. 통과해야 push
    git push origin main --tags
-5. 운영 환경에서:
-   bash .staging/$REPO/scripts/sync.sh v1.0.0
+5. 운영 환경에서 (작업 폴더와 겹치지 않는 이름으로 clone 한다):
+   git clone <원격> .staging/app
+   bash .staging/app/scripts/sync.sh v1.0.0
 \`\`\`
 
 \`\`\`bash
