@@ -78,11 +78,11 @@ bash .staging/app/scripts/sync.sh v{tag_version}   # 매번 (ex. v0.15)
 끝에 무엇을 손으로 합쳐야 하는지 알려준다.
 
 ```bash
-bash scripts/adopt.sh ~/work/rule-based-tagging          # 패키지 이름은 폴더에서
-bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # 직접 줄 수도
+bash scripts/adopt.sh ~/work/rule-based-tagging          # 패키지는 src/core
+bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # src/tagging 으로
 ```
 
-`mypkg` 를 새 이름으로 바꿔서 복사하고, 대상에 `SCAFFOLD.md`(이 표와 단계)를 만든다.
+패키지 이름을 주면 `core` 를 그 이름으로 바꿔서 복사하고, 대상에 `SCAFFOLD.md`(이 표와 단계)를 만든다.
 덮어쓰려면 `--force`.
 
 # 다음 단계
@@ -90,7 +90,7 @@ bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # 직접 줄 수도
 손으로 한다면:
 
 ```
-1. src/ 를 통째로 가져와 mypkg 를 프로젝트 이름으로 바꾼다
+1. src/ 를 통째로 가져와 core 를 프로젝트 이름으로 바꾼다
 2. schema.py 의 INPUT_SCHEMA 를 실제 입력 형태로
 3. pipeline.py 에 기능 코드를 짠다            ← 작업은 대부분 여기
 4. requirements.txt 에 실제 의존성 (버전 고정)

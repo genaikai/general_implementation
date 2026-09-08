@@ -4,8 +4,8 @@ import csv
 
 import pytest
 
-from mypkg import __main__ as run
-from mypkg.synth import generate
+from core import __main__ as run
+from core.synth import generate
 
 REQUIRED_LABELS = ["version", "args", "input", "shape", "schema", "metrics", "runtime", "status"]
 
@@ -77,7 +77,7 @@ def test_summary_goes_to_stdout_and_progress_to_stderr(capsys):
 
 def test_summary_lines_fit_eighty_columns(capsys):
     """글자 수가 아니라 표시 폭이다. 한글은 두 칸이라 len() 으로 자르면 끊긴다."""
-    from mypkg.report import _w
+    from core.report import _w
 
     run.main(["--dry-run", "--rows", "500", "--adversarial"])
     for line in capsys.readouterr().out.splitlines():
@@ -86,7 +86,7 @@ def test_summary_lines_fit_eighty_columns(capsys):
 
 def test_version_is_never_blank():
     """빈칸이면 옮겨 적을 때 통째로 빠지고, 빠진 줄은 없었던 것이 된다."""
-    from mypkg.report import render
+    from core.report import render
 
     out = render(version="  ", args="--x", source="s", n_rows=1, n_cols=1,
                  violations=[], notes=[], metrics={}, runtime_s=0.1, status="OK")
@@ -95,7 +95,7 @@ def test_version_is_never_blank():
 
 def test_metric_names_align_regardless_of_script(capsys):
     """한글 지표명이 섞여도 값의 시작 칸이 같아야 옮겨 적을 때 안 헷갈린다."""
-    from mypkg.report import _w, render
+    from core.report import _w, render
 
     out = render(version="v1", args="--x", source="s", n_rows=1, n_cols=1,
                  violations=[], notes=[], metrics={"평균금액": "1.0", "rows": "1"},

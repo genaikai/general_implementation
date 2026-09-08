@@ -25,11 +25,24 @@ def adopted(tmp_path_factory) -> Path:
     return dest
 
 
-def test_package_is_renamed(adopted):
-    """대상 폴더 이름에서 패키지 이름을 만들고, import 까지 함께 바꾼다."""
-    assert (adopted / "src" / "rule_based_tagging" / "schema.py").exists()
-    assert not (adopted / "src" / "mypkg").exists()
-    assert "mypkg" not in (adopted / "src" / "run.py").read_text(encoding="utf-8")
+def test_package_defaults_to_core(adopted):
+    """이름을 안 주면 src/core 그대로 간다.
+
+    폴더 이름에서 유도하지 않는다 — 폴더 이름은 사본 위치나 작업 폴더 사정으로
+    바뀌기 쉬운데, 그때마다 패키지 이름이 따라 바뀌면 import 가 전부 흔들린다.
+    """
+    assert (adopted / "src" / "core" / "schema.py").exists()
+    assert "from core" in (adopted / "src" / "run.py").read_text(encoding="utf-8")
+
+
+def test_package_is_renamed_when_asked(tmp_path):
+    """이름을 주면 디렉터리도 import 도 함께 바꾼다."""
+    dest = tmp_path / "proj"
+    subprocess.run(["bash", str(ADOPT), str(dest), "tagging"],
+                   capture_output=True, text=True, check=True)
+    assert (dest / "src" / "tagging" / "schema.py").exists()
+    assert not (dest / "src" / "core").exists()
+    assert "core" not in (dest / "src" / "run.py").read_text(encoding="utf-8")
 
 
 def test_adopted_project_runs(adopted):
@@ -61,7 +74,7 @@ def test_transport_boundary_comes_along(adopted):
 def test_guide_is_written_with_the_real_package_name(adopted):
     """사본을 받아든 쪽이 읽을 지도. <pkg> 자리표시자가 남아 있으면 안 된다."""
     guide = (adopted / "SCAFFOLD.md").read_text(encoding="utf-8")
-    assert "src/rule_based_tagging/pipeline.py" in guide
+    assert "src/core/pipeline.py" in guide
     assert "<pkg>" not in guide
 
     # 사본 폴더 이름은 clone 할 디렉터리 이름에서 온다. 작업 폴더와 같은 이름으로

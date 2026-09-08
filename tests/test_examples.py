@@ -39,7 +39,7 @@ def build(example: Path, dest: Path) -> Path:
     """예제를 적용한 src/ 사본을 만든다. 사람이 손으로 하는 것과 같은 조작이다."""
     src = dest / "src"
     shutil.copytree(ROOT / "src", src, ignore=shutil.ignore_patterns("__pycache__"))
-    pkg = src / "mypkg"
+    pkg = src / "core"
 
     schema = pkg / "schema.py"
     schema.write_text(
@@ -81,10 +81,10 @@ def test_example_pipeline_ignores_unused_fields(example, tmp_path):
     src = build(example, tmp_path)
     sys.path.insert(0, str(src))
     try:
-        for mod in [m for m in sys.modules if m.startswith("mypkg")]:
+        for mod in [m for m in sys.modules if m.startswith("core")]:
             del sys.modules[mod]
-        from mypkg.schema import INPUT_SCHEMA, validate
-        from mypkg.synth import generate
+        from core.schema import INPUT_SCHEMA, validate
+        from core.synth import generate
 
         unused = [f for f in INPUT_SCHEMA if not f.used]
         if not unused:
@@ -99,5 +99,5 @@ def test_example_pipeline_ignores_unused_fields(example, tmp_path):
         assert any(unused[0].name in n for n in report.notes)
     finally:
         sys.path.remove(str(src))
-        for mod in [m for m in sys.modules if m.startswith("mypkg")]:
+        for mod in [m for m in sys.modules if m.startswith("core")]:
             del sys.modules[mod]

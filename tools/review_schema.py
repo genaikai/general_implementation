@@ -14,7 +14,7 @@ import anthropic
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from mypkg.schema import INPUT_SCHEMA  # noqa: E402
+from core.schema import INPUT_SCHEMA  # noqa: E402
 
 PROMPT = """다음은 데이터 스키마다. 빠졌을 법한 필드, 서로 모순되는 제약,
 실데이터에서 흔히 깨질 지점을 짚어라.

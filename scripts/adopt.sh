@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # 이 스캐폴드의 필수 부분만 다른 저장소로 복사한다.
 #
-#   bash scripts/adopt.sh <대상 폴더> [패키지 이름]
+#   bash scripts/adopt.sh <대상 폴더> [패키지 이름]   (기본: core)
 #
-# 예)  bash scripts/adopt.sh ~/work/rule-based-tagging
-#      bash scripts/adopt.sh ~/work/rule-based-tagging tagging
+# 예)  bash scripts/adopt.sh ~/work/rule-based-tagging           → src/core
+#      bash scripts/adopt.sh ~/work/rule-based-tagging tagging   → src/tagging
 #
-# 패키지 이름을 안 주면 대상 폴더 이름에서 만든다 (하이픈·점 → 밑줄).
-# 복사하면서 mypkg 를 그 이름으로 바꾼다 - 디렉터리도, 안의 import 도.
+# 패키지 이름을 안 주면 src/core 그대로 간다. 주면 복사하면서 core 를 그 이름으로
+# 바꾼다 - 디렉터리도, 안의 import 도.
 #
 # **이미 있는 파일은 건드리지 않는다.** 기존 저장소에 얹는 것이 목적이라
 # 남의 .gitignore 나 requirements.txt 를 덮어쓰면 안 된다. 건너뛴 것은 끝에
@@ -41,9 +41,10 @@ mkdir -p "$DEST"
 DEST=$(cd "$DEST" && pwd -P)
 [[ "$DEST" != "$SRC" ]] || die "대상이 이 저장소다"
 
-if [[ -z "$PKG" ]]; then
-  PKG=$(basename "$DEST" | tr '.-' '__' | tr '[:upper:]' '[:lower:]')
-fi
+# 안 주면 core 그대로 둔다. 폴더 이름에서 유도하지 않는다 - 폴더 이름은 바뀌기
+# 쉽고(사본 위치·작업 폴더 사정), 그때마다 패키지 이름이 따라 바뀌면 import 가
+# 전부 흔들린다. 이름은 사람이 정할 때만 바꾼다.
+PKG=${PKG:-core}
 [[ "$PKG" =~ ^[a-z_][a-z0-9_]*$ ]] || die "패키지 이름으로 쓸 수 없다: $PKG (소문자·숫자·밑줄)"
 
 log "$SRC"
@@ -80,8 +81,8 @@ copy_file() {                    # copy_file <상대경로> [대상 상대경로
   fi
   mkdir -p "$(dirname "$dst")"
   cp "$SRC/$rel" "$dst"
-  # mypkg 를 새 이름으로. 디렉터리 이름과 import 가 함께 바뀌어야 돈다
-  [[ "$PKG" == mypkg ]] || perl -pi -e "s/\bmypkg\b/$PKG/g" "$dst"
+  # core 를 새 이름으로. 디렉터리 이름과 import 가 함께 바뀌어야 돈다
+  [[ "$PKG" == core ]] || perl -pi -e "s/\bcore\b/$PKG/g" "$dst"
   printf '  + %s\n' "$to"
 }
 
@@ -92,8 +93,8 @@ done
 # src/ — 패키지 디렉터리 이름을 바꿔서 옮긴다
 copy_file src/run.py
 while IFS= read -r f; do
-  copy_file "$f" "src/$PKG/${f#src/mypkg/}"
-done < <(cd "$SRC" && find src/mypkg -type f -name '*.py' | sort)
+  copy_file "$f" "src/$PKG/${f#src/core/}"
+done < <(cd "$SRC" && find src/core -type f -name '*.py' | sort)
 
 for d in "${DIRS[@]}"; do
   [[ -d "$SRC/$d" ]] || continue

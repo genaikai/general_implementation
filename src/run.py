@@ -4,12 +4,12 @@
     python src/run.py --data <csv> [--limit N]
     python src/run.py --dry-run [--adversarial]
 
-파일을 직접 실행하면 sys.path[0] 이 src/ 가 되므로 mypkg 가 그대로 import 된다.
+파일을 직접 실행하면 sys.path[0] 이 src/ 가 되므로 core 가 그대로 import 된다.
 PYTHONPATH 도, 공용 venv 에 대한 설치도 필요 없다 — 공용 venv 에 우리 패키지를 남기지
 않아야 디렉터리를 통째로 갈아끼워도 아무 뒤처리가 없다.
 
 이 파일이 하는 일은 둘뿐이다: venv 를 갈아타는 것과 본체로 넘기는 것.
-나머지는 전부 mypkg/ 안에 있다.
+나머지는 전부 core/ 안에 있다.
 """
 
 import os
@@ -93,6 +93,6 @@ def switch_venv(argv: list[str]) -> None:
 if __name__ == "__main__":
     switch_venv(sys.argv[1:])
 
-    from mypkg.__main__ import main
+    from core.__main__ import main
 
     raise SystemExit(main())

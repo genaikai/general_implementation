@@ -139,8 +139,8 @@ status    : OK
 ## 직접 해보려면
 
 ```bash
-cp examples/orders/pipeline.py src/mypkg/pipeline.py
-# src/mypkg/schema.py 의 "갈아끼운다" 표시 블록을 examples/orders/schema.py 로 교체
+cp examples/orders/pipeline.py src/core/pipeline.py
+# src/core/schema.py 의 "갈아끼운다" 표시 블록을 examples/orders/schema.py 로 교체
 python src/run.py --dry-run --rows 1000 --seed 7
 ```
 
