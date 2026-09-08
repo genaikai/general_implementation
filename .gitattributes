@@ -20,3 +20,6 @@ scripts/sync_appendix.py export-ignore
 scripts/adopt.sh         export-ignore
 scripts/hooks/           export-ignore
 .gitattributes           export-ignore
+
+# C9 예외 목록. 프로젝트가 만든다 (도메인 어휘가 워크플로 어휘와 겹칠 때).
+scripts/sync-allow.txt   export-ignore
