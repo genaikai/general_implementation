@@ -59,14 +59,14 @@ pip install --dry-run -r requirements.txt && pip check   # ⓪ 충돌 먼저
 pip install -r requirements.txt
 
 python src/run.py --dry-run --config configs/env.yaml     # ① 환경 확인
-python src/run.py --data <실데이터> --limit 1000           # ② 계약 확인
+python src/run.py --data <실데이터> --limit 1000           # ② 스키마 확인
 ./run_daily.sh <실데이터>                                  # ③ 전체 — 3번의 스크립트로
 ```
 
 - **①에서 실패하면 환경 문제다.** 코드가 아니라 venv·파이썬 버전을 본다
 - **②가 실제 수확이다.** 여기서 나오는 `contract : n MISMATCH` 줄을 **그대로
   옮겨 적어라.** 그게 입력 형식을 정확히 아는 유일한 경로다
-- ②가 깨끗해진 뒤에 ③으로 간다 — 틀린 계약 위에서 뽑은 숫자는 믿을 수 없다
+- ②가 깨끗해진 뒤에 ③으로 간다 — 틀린 스키마 위에서 뽑은 숫자는 믿을 수 없다
 
 **`--upgrade`·`--force-reinstall` 금지.** 공용 venv 라면 남의 환경을 조용히 깨뜨리고
 되돌릴 수 없다. 충돌은 고치지 말고 메시지를 적어 둔다.
@@ -79,7 +79,7 @@ python src/run.py --data <실데이터> --limit 1000           # ② 계약 확�
 
 | 옮겨 적을 것 | 왜 |
 |---|---|
-| `contract` 의 MISMATCH 줄 전문 | 계약을 고치는 근거 |
+| `schema` 의 MISMATCH 줄 전문 | 스키마를 고치는 근거 |
 | `args` 줄 | 그때 뭘로 돌렸는지. 셸 히스토리는 사라진다 |
 | 새로 터진 데이터 사고 유형 | 합성 데이터에 그 유형을 넣기 위해 |
 | "코드 한 줄만 고치면 되는데" 했던 순간 | 그 값이 CLI 인자에 없었다는 뜻 |

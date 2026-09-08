@@ -51,7 +51,7 @@ log "  → $DEST   (패키지: $PKG)"
 
 # ── 무엇을 가져가나 ─────────────────────────────────────────────────────────
 # 규격이 요구하는 최소 집합이다. 하나라도 빠지면 규격을 만족하지 못한다:
-#   src/          계약·합성데이터·리포트 = §1.1·§1.2·§3.2 그 자체
+#   src/          스키마·합성데이터·리포트 = §1.1·§1.2·§3.2 그 자체
 #   scripts/      이식과 점검 (§2.2·§2.3)
 #   .gitattributes/.gitignore   이식 표면의 경계 두 겹 (§2.3)
 #   TODO.md·todo/ 저쪽에서 만들어야 할 것 (§3.0)
@@ -127,8 +127,8 @@ cat > "$DEST/SCAFFOLD.md" <<EOF
 | \`.gitignore\` | 저장소에 애초에 못 들어오게 (데이터·산출물·설정) |
 | \`src/run.py\` | 진입점. venv 갈아타기 + 위임만 |
 | \`src/$PKG/__main__.py\` | CLI 인자, 실행 순서, 종료 코드 |
-| \`src/$PKG/contracts.py\` | **입력 계약.** 프로젝트마다 갈아끼운다 |
-| \`src/$PKG/synth.py\` | 계약에서 가짜 데이터 생성 (데이터 파일을 두지 않기 위해) |
+| \`src/$PKG/schema.py\` | **입력 스키마.** 프로젝트마다 갈아끼운다 |
+| \`src/$PKG/synth.py\` | 스키마에서 가짜 데이터 생성 (데이터 파일을 두지 않기 위해) |
 | \`src/$PKG/report.py\` | RUN SUMMARY. 화면이 유일한 출력이다 |
 | **\`src/$PKG/pipeline.py\`** | **← 기능 코드를 여기 짠다** |
 | \`src/$PKG/load.py\` | 입력 포맷을 아는 유일한 곳 |
@@ -148,7 +148,7 @@ cat > "$DEST/SCAFFOLD.md" <<EOF
 ## 다음 단계
 
 \`\`\`
-1. contracts.py 의 INPUT_SCHEMA 를 실제 입력 형태로
+1. schema.py 의 INPUT_SCHEMA 를 실제 입력 형태로
 2. pipeline.py 에 기능 코드를 짠다            ← 작업은 대부분 여기
 3. requirements.txt 에 실제 의존성 (버전 고정)
 4. git tag v1.0.0
@@ -225,7 +225,7 @@ fi
 cat <<EOF
 다음:
   cd $DEST
-  \$EDITOR src/$PKG/contracts.py     # INPUT_SCHEMA 를 실제 입력 형태로
+  \$EDITOR src/$PKG/schema.py     # INPUT_SCHEMA 를 실제 입력 형태로
   \$EDITOR src/$PKG/pipeline.py      # 기능 코드는 여기
   python src/run.py --dry-run       # 데이터 파일 없이 끝까지 도는지
 

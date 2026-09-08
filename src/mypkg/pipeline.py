@@ -2,13 +2,13 @@
 
 ⭐ TODO: 아래의 process_data() 함수를 실제 로직으로 구현하세요!
 
-입력: contracts.py의 INPUT_SCHEMA를 만족하는 rows (list[dict])
+입력: schema.py의 INPUT_SCHEMA를 만족하는 rows (list[dict])
 출력: dict (key: 지표명, value: 숫자 또는 문자열)
 
 📋 규칙:
   - 지표 이름은 사이클 사이에 바꾸지 않는다 — 바뀌면 과거 수치와 대조 불가
   - 예: metric_v2 라고 이름 바꾸면 안 되고, 개선 후에도 metric 이름은 유지
-  - is_null(), parse() 는 contracts.py 에서 쓸 수 있음
+  - is_null(), parse() 는 schema.py 에서 쓸 수 있음
   - input_value = row.get("column_name") 로 접근
 
 💡 예시:
@@ -18,7 +18,7 @@
       return result
 """
 
-from .contracts import INPUT_SCHEMA, is_null, parse
+from .schema import INPUT_SCHEMA, is_null, parse
 
 
 def process_data(rows: list[dict]) -> dict:

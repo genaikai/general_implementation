@@ -27,13 +27,13 @@ def adopted(tmp_path_factory) -> Path:
 
 def test_package_is_renamed(adopted):
     """대상 폴더 이름에서 패키지 이름을 만들고, import 까지 함께 바꾼다."""
-    assert (adopted / "src" / "rule_based_tagging" / "contracts.py").exists()
+    assert (adopted / "src" / "rule_based_tagging" / "schema.py").exists()
     assert not (adopted / "src" / "mypkg").exists()
     assert "mypkg" not in (adopted / "src" / "run.py").read_text(encoding="utf-8")
 
 
 def test_adopted_project_runs(adopted):
-    """계약을 안 고쳐도 데이터 파일 없이 전 구간이 돈다."""
+    """스키마를 안 고쳐도 데이터 파일 없이 전 구간이 돈다."""
     got = subprocess.run([sys.executable, "src/run.py", "--dry-run", "--rows", "200"],
                          cwd=adopted, capture_output=True, text=True)
     assert got.returncode == 0, got.stdout + got.stderr

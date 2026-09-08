@@ -50,8 +50,8 @@ bash .staging/{BB}/scripts/sync.sh v{tag_version}  # 매번 (ex. v0.15)
 | `.gitignore` | 저장소에 애초에 못 들어오게 (데이터·산출물·설정) |
 | `src/run.py` | 진입점. venv 갈아타기 + 위임만 |
 | `src/<pkg>/__main__.py` | CLI 인자, 실행 순서, 종료 코드 |
-| `src/<pkg>/contracts.py` | **입력 계약.** 프로젝트마다 갈아끼운다 |
-| `src/<pkg>/synth.py` | 계약에서 가짜 데이터 생성 (데이터 파일을 두지 않기 위해) |
+| `src/<pkg>/schema.py` | **입력 스키마.** 프로젝트마다 갈아끼운다 |
+| `src/<pkg>/synth.py` | 스키마에서 가짜 데이터 생성 (데이터 파일을 두지 않기 위해) |
 | `src/<pkg>/report.py` | RUN SUMMARY. 화면이 유일한 출력이다 |
 | **`src/<pkg>/pipeline.py`** | **← 기능 코드를 여기 짠다** |
 | `src/<pkg>/load.py` | 입력 포맷을 아는 유일한 곳 |
@@ -83,7 +83,7 @@ bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # 직접 줄 수도
 
 ```
 1. src/ 를 통째로 가져와 mypkg 를 프로젝트 이름으로 바꾼다
-2. contracts.py 의 INPUT_SCHEMA 를 실제 입력 형태로
+2. schema.py 의 INPUT_SCHEMA 를 실제 입력 형태로
 3. pipeline.py 에 기능 코드를 짠다            ← 작업은 대부분 여기
 4. requirements.txt 에 실제 의존성 (버전 고정)
 5. git tag v1.0.0

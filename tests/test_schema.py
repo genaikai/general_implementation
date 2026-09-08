@@ -1,10 +1,10 @@
-"""계약 ↔ 생성기 왕복. 픽스처 파일 없이 generate() 로 데이터를 만든다."""
+"""스키마 ↔ 생성기 왕복. 픽스처 파일 없이 generate() 로 데이터를 만든다."""
 
-from mypkg.contracts import INPUT_SCHEMA, validate
+from mypkg.schema import INPUT_SCHEMA, validate
 from mypkg.synth import generate
 
 
-def test_generated_data_satisfies_contract():
+def test_generated_data_satisfies_schema():
     assert validate(generate(500, seed=0)).ok
 
 
@@ -40,10 +40,10 @@ def test_empty_input_is_reported():
     assert validate([]).violations == ["input       : 0 rows"]
 
 
-def test_unused_fields_do_not_count_as_contract_violations():
+def test_unused_fields_do_not_count_as_schema_violations():
     """안 쓰는 필드의 어긋남은 노트로 내려가고, 쓰는 필드는 그대로 위반이다.
 
-    계약 위반 줄은 "판정이 틀렸을 수 있다"는 뜻이어야 한다 — 거기 잡음이 섞이면
+    스키마 위반 줄은 "판정이 틀렸을 수 있다"는 뜻이어야 한다 — 거기 잡음이 섞이면
     사람이 그 줄 자체를 안 보게 된다.
     """
     unused = [f for f in INPUT_SCHEMA if not f.used]

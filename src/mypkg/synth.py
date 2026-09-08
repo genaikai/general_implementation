@@ -1,4 +1,4 @@
-"""계약에서 파생된 합성 데이터 생성기.
+"""스키마에서 파생된 합성 데이터 생성기.
 
 가짜 데이터는 **파일이 아니라 코드로** 존재한다. 저장소에 데이터 파일이 없으면
 실수로 커밋될 파일 자체가 없다.
@@ -9,7 +9,7 @@ import random
 import string
 from datetime import datetime, timedelta
 
-from .contracts import INPUT_SCHEMA, Field
+from .schema import INPUT_SCHEMA, Field
 
 _EPOCH = datetime(2020, 1, 1)
 
@@ -37,7 +37,7 @@ def _corrupt(row: dict, rng: random.Random) -> dict:
     kind = rng.randrange(5)
     if kind == 0:                                    # 숫자 컬럼이 문자열로 읽힘
         row[field.name] = "1,234" if field.dtype in ("int", "float") else " " + str(row[field.name])
-    elif kind == 1:                                  # 계약에 없는 카테고리 값
+    elif kind == 1:                                  # 스키마에 없는 카테고리 값
         row[field.name] = "?" if field.allowed else "UNKNOWN"
     elif kind == 2:                                  # 결측 (nullable=False 여도)
         row[field.name] = ""
@@ -49,9 +49,9 @@ def _corrupt(row: dict, rng: random.Random) -> dict:
 
 
 def generate(n: int = 1000, seed: int = 0, mode: str = "normal") -> list[dict]:
-    """계약을 읽어 합성 데이터를 만든다. 같은 seed 는 같은 데이터를 준다.
+    """스키마를 읽어 합성 데이터를 만든다. 같은 seed 는 같은 데이터를 준다.
 
-    mode="normal"      계약을 온전히 만족하는 데이터
+    mode="normal"      스키마를 온전히 만족하는 데이터
     mode="adversarial" 위 사고 유형을 섞은 데이터
     """
     rng = random.Random(seed)

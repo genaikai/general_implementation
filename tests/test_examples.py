@@ -3,7 +3,7 @@
 예제는 썩기 쉽다 — 스캐폴드 API 가 바뀌어도 문서 안의 코드는 조용히 남는다.
 그래서 예제를 설명하지 말고 **돌린다.** 여기서 깨지면 예제가 낡은 것이다.
 
-방식은 사람이 하는 것과 같다: `src/` 를 임시 폴더로 복사하고, `contracts.py` 의
+방식은 사람이 하는 것과 같다: `src/` 를 임시 폴더로 복사하고, `schema.py` 의
 표시된 블록을 예제 스키마로 바꾸고, `pipeline.py` 를 통째로 갈아끼운 뒤 돌린다.
 """
 
@@ -24,9 +24,9 @@ def _example_dirs() -> list[Path]:
     return sorted(p for p in EXAMPLES.iterdir() if p.is_dir()) if EXAMPLES.exists() else []
 
 
-def _splice_schema(contracts: str, schema_src: str) -> str:
-    """contracts.py 의 표시된 블록만 예제 스키마로 갈아끼운다."""
-    head, _, rest = contracts.partition(BEGIN)
+def _splice_schema(schema: str, schema_src: str) -> str:
+    """schema.py 의 표시된 블록만 예제 스키마로 갈아끼운다."""
+    head, _, rest = schema.partition(BEGIN)
     _, _, tail = rest.partition(END)
     tail = tail.split("\n", 1)[1] if "\n" in tail else ""
 
@@ -41,9 +41,9 @@ def build(example: Path, dest: Path) -> Path:
     shutil.copytree(ROOT / "src", src, ignore=shutil.ignore_patterns("__pycache__"))
     pkg = src / "mypkg"
 
-    contracts = pkg / "contracts.py"
-    contracts.write_text(
-        _splice_schema(contracts.read_text(encoding="utf-8"),
+    schema = pkg / "schema.py"
+    schema.write_text(
+        _splice_schema(schema.read_text(encoding="utf-8"),
                        (example / "schema.py").read_text(encoding="utf-8")),
         encoding="utf-8")
 
@@ -58,16 +58,16 @@ def run(src: Path, args: list[str]) -> subprocess.CompletedProcess:
 
 @pytest.mark.parametrize("example", _example_dirs(), ids=lambda p: p.name)
 def test_example_runs_end_to_end(example, tmp_path):
-    """예제 계약 + 예제 파이프라인으로 전 구간이 돈다."""
+    """예제 스키마 + 예제 파이프라인으로 전 구간이 돈다."""
     src = build(example, tmp_path)
     got = run(src, ["--dry-run", "--rows", "500"])
     assert got.returncode == 0, got.stdout + got.stderr
     assert "RUN SUMMARY" in got.stdout
-    assert "0 MISMATCH" in got.stdout, "합성 데이터는 제 계약을 만족해야 한다"
+    assert "0 MISMATCH" in got.stdout, "합성 데이터는 제 스키마를 만족해야 한다"
 
 
 @pytest.mark.parametrize("example", _example_dirs(), ids=lambda p: p.name)
-def test_example_catches_contract_violations(example, tmp_path):
+def test_example_catches_schema_violations(example, tmp_path):
     """적대적 모드에서 위반이 잡히고 종료 코드가 1 이다."""
     src = build(example, tmp_path)
     got = run(src, ["--dry-run", "--rows", "1000", "--adversarial"])
@@ -83,7 +83,7 @@ def test_example_pipeline_ignores_unused_fields(example, tmp_path):
     try:
         for mod in [m for m in sys.modules if m.startswith("mypkg")]:
             del sys.modules[mod]
-        from mypkg.contracts import INPUT_SCHEMA, validate
+        from mypkg.schema import INPUT_SCHEMA, validate
         from mypkg.synth import generate
 
         unused = [f for f in INPUT_SCHEMA if not f.used]

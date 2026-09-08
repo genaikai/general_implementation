@@ -1,6 +1,6 @@
 """개발 보조 도구 — 개발 장비 전용 (규격 §1.4).
 
-계약 파일을 LLM 에게 보여 빠진 필드나 모순을 짚게 한다.
+스키마 파일을 LLM 에게 보여 빠진 필드나 모순을 짚게 한다.
 운영 환경에서는 이 API 를 쓸 수 없으므로(C8) 이 디렉터리는 .gitattributes 의
 export-ignore 로 이식에서 제외된다.
 
@@ -14,9 +14,9 @@ import anthropic
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from mypkg.contracts import INPUT_SCHEMA  # noqa: E402
+from mypkg.schema import INPUT_SCHEMA  # noqa: E402
 
-PROMPT = """다음은 데이터 계약이다. 빠졌을 법한 필드, 서로 모순되는 제약,
+PROMPT = """다음은 데이터 스키마다. 빠졌을 법한 필드, 서로 모순되는 제약,
 실데이터에서 흔히 깨질 지점을 짚어라.
 
 {schema}

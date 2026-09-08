@@ -4,7 +4,7 @@
 둘뿐이고, 나머지는 손대지 않았다.
 
 ```
-src/<pkg>/contracts.py   ← 표시된 블록만 orders/schema.py 로 갈아끼움
+src/<pkg>/schema.py   ← 표시된 블록만 orders/schema.py 로 갈아끼움
 src/<pkg>/pipeline.py    ← orders/pipeline.py 로 통째 교체
 ```
 
@@ -13,7 +13,7 @@ src/<pkg>/pipeline.py    ← orders/pipeline.py 로 통째 교체
 
 ---
 
-## 1. 계약을 적는다 — `orders/schema.py`
+## 1. 스키마를 적는다 — `orders/schema.py`
 
 입력이 어떻게 생겼는지를 **구조로만** 적는다.
 
@@ -43,19 +43,19 @@ INPUT_SCHEMA: tuple[Field, ...] = (
 ```python
 def process_data(rows: list[dict]) -> dict:
     ...
-    # 채널은 계약의 allowed 에서 가져온다 — 코드에 박으면 계약과 갈라진다
+    # 채널은 스키마의 allowed 에서 가져온다 — 코드에 박으면 스키마와 갈라진다
     declared = next((f.allowed for f in INPUT_SCHEMA if f.name == "channel"), ())
     for name in declared:
         metrics[f"share_{name}"] = f"{channels[name] / len(rows):.3f}"
 ```
 
-채널 목록을 이 파일에 박지 않고 **계약에서 읽는다.** 채널이 하나 늘면 고칠 곳이
-계약 한 줄뿐이다 — 운영 환경에서는 코드를 못 고치므로(C2), 고칠 곳이 하나여야
+채널 목록을 이 파일에 박지 않고 **스키마에서 읽는다.** 채널이 하나 늘면 고칠 곳이
+스키마 한 줄뿐이다 — 운영 환경에서는 코드를 못 고치므로(C2), 고칠 곳이 하나여야
 다음 사이클이 싸다.
 
 ## 3. 돌린다
 
-계약만 채우면 **가짜 데이터가 저절로 따라온다.** 데이터 파일을 만들지 않았는데도
+스키마만 채우면 **가짜 데이터가 저절로 따라온다.** 데이터 파일을 만들지 않았는데도
 전 구간이 돈다.
 
 ```bash
@@ -70,7 +70,7 @@ version   : unversioned
 args      : --dry-run --rows 1000 --seed 7
 input     : synthetic(n=1000, seed=7, mode=normal)
 shape     : 1,000 rows x 6 cols
-contract  : 6 ok / 0 MISMATCH
+schema    : 6 ok / 0 MISMATCH
 metrics   :
   orders           1,000
   revenue          511,006,300
@@ -86,7 +86,7 @@ status    : OK
 
 종료 코드 `0`.
 
-## 4. 계약이 깨지면 이렇게 보인다
+## 4. 스키마가 깨지면 이렇게 보인다
 
 `--adversarial` 은 운영 환경에서 실제로 터졌던 사고 유형을 섞는다.
 
@@ -95,7 +95,7 @@ python src/run.py --dry-run --rows 1000 --seed 7 --adversarial
 ```
 
 ```
-contract  : 0 ok / 9 MISMATCH
+schema    : 0 ok / 9 MISMATCH
   - ordered_at  : dtype datetime expected, 1 rows failed to parse
   - channel     : 2 nulls but nullable=False
   - channel     : unexpected values {' app', '?'}
@@ -116,7 +116,7 @@ status    : CONTRACT MISMATCH
 요약은 이 규격에서 결함이다 — 베낄 것이 없기 때문이다.
 
 `channel : unexpected values {' app', '?'}` 를 보면 **앞에 공백이 붙은 `' app'`** 이
-있다는 걸 알 수 있다. 그러면 개발 장비로 돌아가 `contracts.py` 의 `note` 에 적거나,
+있다는 걸 알 수 있다. 그러면 개발 장비로 돌아가 `schema.py` 의 `note` 에 적거나,
 `load.py` 에서 `strip()` 하도록 고친다.
 
 ## 5. 안 읽는 필드는 위반이 아니다
@@ -124,7 +124,7 @@ status    : CONTRACT MISMATCH
 `coupon_code` 는 `used=False` 라서, 어긋나도 **노트로 내려가고 종료 코드는 `0`** 이다.
 
 ```
-contract  : 5 ok / 0 MISMATCH
+schema    : 5 ok / 0 MISMATCH
 notes     : 1 (판정에 영향 없음)
   - coupon_code : column missing
 status    : OK
@@ -140,7 +140,7 @@ status    : OK
 
 ```bash
 cp examples/orders/pipeline.py src/mypkg/pipeline.py
-# src/mypkg/contracts.py 의 "갈아끼운다" 표시 블록을 examples/orders/schema.py 로 교체
+# src/mypkg/schema.py 의 "갈아끼운다" 표시 블록을 examples/orders/schema.py 로 교체
 python src/run.py --dry-run --rows 1000 --seed 7
 ```
 

@@ -7,7 +7,7 @@
 
 종료 코드 — 실행 스크립트가 여기에 분기한다:
     0  정상
-    1  돌았지만 온전치 않다 (계약 위반). 재시도해도 같다
+    1  돌았지만 온전치 않다 (스키마 위반). 재시도해도 같다
     2  시작도 못 했다 (인자 누락·입력 없음). 고치고 다시 돌린다
 """
 
@@ -16,7 +16,7 @@ import sys
 import time
 from pathlib import Path
 
-from .contracts import validate
+from .schema import validate
 from .load import load_csv
 from .pipeline import process_data
 from .report import render

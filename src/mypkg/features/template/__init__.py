@@ -25,7 +25,7 @@ import 한다 (`from .patterns import PATTERNS`). 폴더 깊이가 처음부터 
   남고, 덮였다는 사실은 어디에도 안 뜬다
 """
 
-from ...contracts import is_null
+from ...schema import is_null
 
 NAME = "template"  # 폴더 이름과 같게 둔다. 지표 접두어로 쓰인다
 
@@ -48,8 +48,8 @@ def _hit(row: dict) -> bool:
     ⭐ TODO: 실제 판정을 여기에. 지금은 "빈 값이 하나라도 있나" 를 본다 —
     자리를 지키면서 전 구간이 도는 것까지만 보이는 최소 구현이다.
 
-    `parse()` 로 타입을 해석할 수 있고, 계약이 필요하면 `INPUT_SCHEMA` 를 읽는다:
+    `parse()` 로 타입을 해석할 수 있고, 스키마가 필요하면 `INPUT_SCHEMA` 를 읽는다:
 
-        from ...contracts import INPUT_SCHEMA, is_null, parse
+        from ...schema import INPUT_SCHEMA, is_null, parse
     """
     return any(is_null(value) for value in row.values())
