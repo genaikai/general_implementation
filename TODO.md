@@ -46,11 +46,11 @@ paths:
 configs/env.yaml
 outputs/
 notebooks/
+.venv/  venv/  __pycache__/
 
 # ⚠ 직접 더한다 — 실제로 다루는 확장자에 맞춰
 *.csv
 *.parquet
-__pycache__/
 ```
 
 한 번 새면 되돌릴 수 없다.
