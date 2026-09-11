@@ -64,27 +64,41 @@ bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # src/tagging 으로
 패키지 이름을 주면 `core` 를 그 이름으로 바꿔서 복사하고, 대상에 `SCAFFOLD.md`(이 표와 단계)를 만든다.
 덮어쓰려면 `--force`.
 
-# 다음 단계
+# 가져간 뒤 — 개발 장비에서
 
-손으로 한다면:
+`adopt.sh` 가 파일을 옮겨놓은 다음, **직접 해야 하는 일은 둘뿐이다.**
 
 ```
-1. src/ 를 통째로 가져와 core 를 프로젝트 이름으로 바꾼다
-2. schema.py 의 INPUT_SCHEMA 를 실제 입력 형태로
-3. pipeline.py 에 기능 코드를 짠다            ← 작업은 대부분 여기
-4. requirements.txt 에 실제 의존성 (버전 고정)
-5. git tag v1.0.0
-   bash scripts/sync.sh v1.0.0                 ← preflight. 통과해야 push
-   git push origin main --tags
-6. 운영 환경에서:
-   bash .staging/<저장소이름>/scripts/sync.sh v1.0.0
+1. src/core/schema.py  의 INPUT_SCHEMA 를 실제 입력 형태로
+2. src/core/pipeline.py 에 기능 코드를 짠다        ← 작업은 대부분 여기
 ```
+
+1번을 고치면 합성 데이터·검증·리포트·테스트가 **전부 따라온다.** 그래서 데이터 파일
+없이도 이 시점에 전 구간이 돈다.
 
 ```bash
-python src/run.py --dry-run   # 2번까지 끝났으면 데이터 없이 끝까지 돈다
+python src/run.py --dry-run        # 여기서 exit 0 이면 준비 끝
 ```
 
-## 이식 방법 (운영 환경)
+의존성이 생기면 `requirements.txt` 에 **버전을 고정해서** 적는다. 운영 환경과 같은
+것을 쓰게 하는 잠금 파일이다.
+
+## 내보내기
+
+돌려볼 준비가 되면 태그를 내고, **push 하기 전에** 점검을 돌린다.
+
+```bash
+git tag v1.0.0
+bash scripts/sync.sh v1.0.0        # ← 넘어가면 안 되는 것이 없는지. 통과해야 push
+git push origin main --tags
+```
+
+점검에 걸리면 고치고 **태그를 다시 낸다.** 여기서 막는 것이 운영 환경에서 막는 것보다
+훨씬 싸다 — 저쪽에서 걸리면 사이클을 하나 버린다.
+
+---
+
+# 받기 — 운영 환경에서
 
 ```bash
 cd {AA}/{target_path}
