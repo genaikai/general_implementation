@@ -2,6 +2,7 @@
 README.md                export-ignore
 scripts/sync.sh          export-ignore
 tests/test_spec_compliance.py export-ignore
+configs/env.example.yaml  export-ignore
 
 tools/                   export-ignore
 requirements-dev.txt     export-ignore
