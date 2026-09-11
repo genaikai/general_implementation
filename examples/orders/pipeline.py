@@ -1,49 +1,33 @@
-"""주문 로그 지표 — src/<pkg>/pipeline.py 를 통째로 갈아끼운 예시.
+"""주문 로그 판정 등록부 — src/<pkg>/pipeline.py 를 갈아끼운 예시.
 
-여기서 보여주려는 것 셋:
+기능이 둘이다. 여기서 보여주려는 것:
 
-1. **스키마에 있는 필드만 읽는다.** coupon_code 는 used=False 라 이 함수가 건드리지
-   않는다. 안 읽는 필드가 어긋나도 판정은 멀쩡하다는 것이 그래서 성립한다.
-2. **바뀔 만한 값이 코드에 없다.** 임계값·기간·채널 목록을 박지 않는다 — 운영
-   환경에서는 한 줄도 못 고치므로 그런 값은 전부 CLI 인자여야 한다 (§1.3).
-3. **지표 이름은 사이클 사이에 바뀌지 않는다.** 이름이 바뀌면 지난 실험 숫자와
-   대조할 수 없고, 결과 파일을 못 가져오는 환경에서 그건 되돌릴 수 없다.
+1. **기능을 늘려도 만질 곳이 둘뿐이다** — features/ 에 폴더 하나, 아래 목록에 한 줄.
+   스키마·적재·리포트·진입점은 그대로다.
+2. **지표 이름 앞에 NAME 이 붙는다.** 둘의 결과가 한 리포트에 모이므로, 접두어가
+   없으면 겹친다. 겹치면 아래에서 죽는다 — 조용히 덮어쓰지 않는다.
+3. **안 읽는 필드는 건드리지 않는다.** coupon_code 는 used=False 라 어느 기능도
+   읽지 않고, 그래서 그게 어긋나도 판정은 멀쩡하다.
 """
 
-from collections import Counter
+from .features import big_order, channel_mix
 
-from .schema import INPUT_SCHEMA, is_null, parse
+# 화면에 뜨는 순서다. 사람이 사이클 사이에 눈으로 대조하므로 순서를 바꾸지 않는다.
+FEATURES = (
+    channel_mix,
+    big_order,
+)
 
 
 def process_data(rows: list[dict]) -> dict:
-    """채널별 주문 분포와 금액 요약. 실데이터의 개별 값은 절대 찍지 않는다 (C3)."""
-    amounts: list[float] = []
-    quantities: list[int] = []
-    channels: Counter = Counter()
-
-    for row in rows:
-        if not is_null(row.get("amount")):
-            try:
-                amounts.append(parse(row["amount"], "float"))
-            except (TypeError, ValueError):
-                pass                      # 스키마 위반은 validate 가 이미 세었다
-        if not is_null(row.get("quantity")):
-            try:
-                quantities.append(parse(row["quantity"], "int"))
-            except (TypeError, ValueError):
-                pass
-        if not is_null(row.get("channel")):
-            channels[row["channel"]] += 1
-
-    metrics = {
-        "orders": f"{len(rows):,}",
-        "revenue": f"{sum(amounts):,.0f}",
-        "amount_mean": f"{sum(amounts) / len(amounts):,.0f}" if amounts else "n/a",
-        "qty_mean": f"{sum(quantities) / len(quantities):.2f}" if quantities else "n/a",
-    }
-    # 채널은 스키마의 allowed 에서 가져온다 — 코드에 박으면 스키마와 갈라진다
-    declared = next((f.allowed for f in INPUT_SCHEMA if f.name == "channel"), ()) or ()
-    for name in declared:
-        share = channels[name] / len(rows) if rows else 0
-        metrics[f"share_{name}"] = f"{share:.3f}"
+    metrics = {"rows": f"{len(rows):,}"}
+    for feature in FEATURES:
+        result = feature.process_data(rows)
+        collided = metrics.keys() & result.keys()
+        if collided:
+            raise KeyError(
+                f"{feature.NAME} 의 지표 이름이 겹친다: {sorted(collided)}. "
+                f"지표 이름 앞에 NAME 을 붙여라"
+            )
+        metrics.update(result)
     return metrics

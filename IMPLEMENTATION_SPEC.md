@@ -129,18 +129,20 @@ C8. 개발 장비에서는 Claude Code·LLM API로 얼마든지 짜고 검증한
 
 ### 1.5 기능이 여럿일 때
 
-여기까지는 `pipeline.py` 하나를 가정했다. 판정 규칙이 열 개인 프로젝트처럼 **서로 독립인
-기능이 여럿**이면 그 가정이 깨진다 — 한 파일에 다 넣으면 어느 규칙이 깨졌는지 분리되지 않고,
-규칙 하나를 고치는 동안 나머지 아홉이 같이 흔들린다.
+판정 규칙이 열 개인 프로젝트처럼 **서로 독립인 기능이 여럿**이면, 한 파일에 다 넣었을 때
+어느 규칙이 깨졌는지 분리되지 않고 규칙 하나를 고치는 동안 나머지 아홉이 같이 흔들린다.
 
-**기능이 하나면 `pipeline.py` 그대로 둔다.** 아래 배치는 둘째 기능이 생기는 순간에 옮긴다.
+**기능이 하나뿐이어도 이 배치로 시작한다.** "둘째가 생기면 그때 옮긴다"는 나중에 더 비싸다 —
+옮기는 순간에 import 도 테스트도 지표 이름도 함께 흔들리고, 그 순간은 하필 기능을 하나
+더 만드느라 바쁠 때 온다. `FEATURES` 에 하나만 들어 있는 것은 비용이 아니다.
 
 ```
 src/<pkg>/
   schema.py  load.py  report.py  synth.py   ← 공유. 기능이 늘어도 하나뿐이다
   __main__.py                                   ← 진입점도 하나뿐이다
-  pipeline.py                                   ← 기능들을 불러 합치는 자리가 된다
+  pipeline.py                                   ← 기능들을 불러 합치는 등록부
   features/
+    _shared.py             ← 둘 이상이 같이 쓰는 것만. 기능이 아니라 밑줄로 표시
     template/__init__.py   ← 복사 원본. 저장소에 둔다
     <기능>/__init__.py     ← 기능마다 폴더 하나. process_data 를 노출한다
     <기능>/patterns.py     ← 그 기능만 쓰는 것들은 그 폴더 안에
@@ -166,16 +168,28 @@ src/<pkg>/
 ```python
 from .features import aa, bb
 
+# 화면에 뜨는 순서다. 사람이 사이클 사이에 눈으로 대조하므로 순서를 바꾸지 않는다.
+FEATURES = (aa, bb)
+
 def process_data(rows: list[dict]) -> dict:
     metrics = {"rows": f"{len(rows):,}"}
-    for feature in (aa, bb):
-        metrics.update(feature.process_data(rows))
+    for feature in FEATURES:
+        result = feature.process_data(rows)
+        collided = metrics.keys() & result.keys()
+        if collided:
+            raise KeyError(f"{feature.NAME} 의 지표 이름이 겹친다: {sorted(collided)}")
+        metrics.update(result)
     return metrics
 ```
 
-**지표 이름에는 기능 이름을 접두어로 붙인다.** 결과가 한 리포트에 모이므로(§3.2), 두 기능이
-같은 지표 이름을 쓰면 `update()` 에서 **조용히 덮어쓴다** — 화면에는 마지막 기능의 숫자만
-남고 덮였다는 사실은 어디에도 뜨지 않는다. 그러면 §3.2가 지키려는 회수 채널이 거짓을 준다.
+**지표 이름에는 기능 이름을 접두어로 붙이고, 겹치면 죽인다.** 결과가 한 리포트에 모이므로
+(§3.2), 두 기능이 같은 이름을 쓰면 `update()` 가 **조용히 덮어쓴다** — 화면에는 마지막
+기능의 숫자만 남고 덮였다는 사실은 어디에도 뜨지 않는다. 사람은 틀린 숫자를 옳은 줄 알고
+옮겨 적는다. **접두어를 문서로만 요구하면 언젠가 빠진다. 기계가 막아야 한다.**
+
+**공용 헬퍼는 둘 이상이 같이 쓸 때만 `_shared.py` 로 올린다.** 한 기능만 쓰는 것을 거기
+두면, 고칠 때 누가 영향받는지 알 수 없어진다. 반대로 두 기능이 같은 기준을 각자 들고 있으면
+한쪽만 고쳐지고 그때부터 둘이 다른 것을 본다.
 
 **복사 원본을 저장소에 둔다** (`features/template/`). 시작할 때 기능이 몇 개가 될지 모르기
 때문이다 — 둘인 줄 알고 시작해 여섯이 되는 일이 실제로 있었다. 원본이 없으면 일곱 번째를

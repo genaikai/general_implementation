@@ -40,7 +40,8 @@
 | `src/<pkg>/schema.py` | **입력 스키마.** 프로젝트마다 갈아끼운다 |
 | `src/<pkg>/synth.py` | 스키마에서 가짜 데이터 생성 (데이터 파일을 두지 않기 위해) |
 | `src/<pkg>/report.py` | RUN SUMMARY. 화면이 유일한 출력이다 |
-| **`src/<pkg>/pipeline.py`** | **← 기능 코드를 여기 짠다** |
+| **`src/<pkg>/features/<기능>/`** | **← 기능 코드를 여기 짠다.** 폴더 하나가 기능 하나 |
+| `src/<pkg>/pipeline.py` | 기능 목록. 늘릴 때 한 줄 더한다 |
 | `src/<pkg>/load.py` | 입력 포맷을 아는 유일한 곳 |
 | `requirements.txt` | 운영 의존성 (버전 고정) |
 | `requirements-dev.txt` | 개발 전용 패키지 (이식 제외) |
@@ -70,7 +71,9 @@ bash scripts/adopt.sh ~/work/rule-based-tagging tagging  # src/tagging 으로
 
 ```
 1. src/core/schema.py  의 INPUT_SCHEMA 를 실제 입력 형태로
-2. src/core/pipeline.py 에 기능 코드를 짠다        ← 작업은 대부분 여기
+2. 기능을 만든다                                  ← 작업은 대부분 여기
+   cp -r src/core/features/template src/core/features/<기능>
+   src/core/pipeline.py 의 FEATURES 에 한 줄 더한다
 ```
 
 1번을 고치면 합성 데이터·검증·리포트·테스트가 **전부 따라온다.** 그래서 데이터 파일
@@ -119,8 +122,12 @@ bash .staging/app/scripts/sync.sh v{tag_version}   # 매번 (ex. v0.15)
 
 # 핵심
 
-- **기능 코드는 `src/<pkg>/pipeline.py`.** 포맷을 읽는 코드는 `load.py`,
+- **기능 코드는 `src/<pkg>/features/<기능>/`.** 폴더 하나가 기능 하나고, `pipeline.py`
+  의 `FEATURES` 에 한 줄 더하면 리포트에 나온다. 포맷을 읽는 코드는 `load.py`,
   그 외에는 손댈 일이 거의 없다
+- **지표 이름 앞에 `NAME` 을 붙인다.** 여럿의 결과가 한 리포트에 모이므로 접두어가
+  없으면 겹치고, 겹치면 `pipeline.py` 가 죽인다 — 조용히 덮어쓰면 화면의 숫자가
+  거짓이 되기 때문이다
 - **`sync.sh` 는 반드시 `scripts/sync.sh` 다.** 자기 위치에서 저장소 이름을 유도하기
   때문이다 — 스크립트의 부모의 부모가 저장소 루트고, 그 이름이 `{BB}` 다.
   운영 모드는 자기가 `{AA}/.staging/{BB}/scripts/sync.sh` 에 있는지로 판별한다.

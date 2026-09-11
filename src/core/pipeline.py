@@ -1,43 +1,38 @@
-"""도메인 로직을 붙이는 자리 .
+"""판정들을 불러 한 장으로 합친다.
 
-⭐ TODO: 아래의 process_data() 함수를 실제 로직으로 구현하세요!
+기능 하나하나는 `features/<기능>/` 안에 있고, 이 파일은 그것들을 부르는 일만 한다.
+**목록이 여기 있는 것이 요점이다** — 기능이 늘어도 스키마·적재·리포트·진입점은
+손대지 않는다.
 
-입력: schema.py의 INPUT_SCHEMA를 만족하는 rows (list[dict])
-출력: dict (key: 지표명, value: 숫자 또는 문자열)
+기능을 하나 만들려면 둘이면 된다:
 
-📋 규칙:
-  - 지표 이름은 사이클 사이에 바꾸지 않는다 — 바뀌면 과거 수치와 대조 불가
-  - 예: metric_v2 라고 이름 바꾸면 안 되고, 개선 후에도 metric 이름은 유지
-  - is_null(), parse() 는 schema.py 에서 쓸 수 있음
-  - input_value = row.get("column_name") 로 접근
+    cp -r src/core/features/template src/core/features/<기능>
+    # 아래 FEATURES 에 한 줄 더한다
 
-💡 예시:
-  def process_data(rows):
-      result = {"rows": len(rows)}
-      # 실제 기능 코드를 여기에
-      return result
+기능이 하나뿐이어도 이 모양을 쓴다. 나중에 옮기는 것보다 처음부터 자리를 잡아두는
+편이 싸다 — 옮기는 순간에는 import 도 테스트도 지표 이름도 함께 흔들린다.
 """
 
-from .schema import INPUT_SCHEMA, is_null, parse
+from .features import template
+
+# 화면에 뜨는 순서다. 사람이 사이클 사이에 눈으로 대조하므로 순서를 바꾸지 않는다.
+FEATURES = (
+    template,
+)
 
 
 def process_data(rows: list[dict]) -> dict:
-    """입력 데이터를 처리하고 결과 지표를 반환합니다.
-
-    이 함수가 이 파일의 핵심 — 실제 도메인 로직을 여기에 구현하세요.
-    """
-    numeric = [f.name for f in INPUT_SCHEMA if f.dtype in ("int", "float")]
+    """판정 전부를 돌리고 지표를 합친다."""
     metrics = {"rows": f"{len(rows):,}"}
-    for name in numeric:
-        values = []
-        for row in rows:
-            raw = row.get(name)
-            if is_null(raw):
-                continue
-            try:
-                values.append(parse(raw, "float"))
-            except (TypeError, ValueError):
-                continue
-        metrics[f"{name}_mean"] = f"{sum(values) / len(values):.4f}" if values else "n/a"
-        metrics[f"{name}_nullrate"] = f"{1 - len(values) / len(rows):.4f}" if rows else "n/a"
+    for feature in FEATURES:
+        result = feature.process_data(rows)
+        collided = metrics.keys() & result.keys()
+        if collided:
+            # 조용히 덮어쓰면 화면의 숫자가 거짓이 된다 — 마지막 기능의 값만 남고
+            # 덮였다는 사실은 어디에도 안 뜬다. 시끄럽게 죽는 쪽이 낫다.
+            raise KeyError(
+                f"{feature.NAME} 의 지표 이름이 겹친다: {sorted(collided)}. "
+                f"지표 이름 앞에 NAME 을 붙여라"
+            )
+        metrics.update(result)
     return metrics

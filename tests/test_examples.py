@@ -4,7 +4,7 @@
 그래서 예제를 설명하지 말고 **돌린다.** 여기서 깨지면 예제가 낡은 것이다.
 
 방식은 사람이 하는 것과 같다: `src/` 를 임시 폴더로 복사하고, `schema.py` 의
-표시된 블록을 예제 스키마로 바꾸고, `pipeline.py` 를 통째로 갈아끼운 뒤 돌린다.
+표시된 블록을 예제 스키마로 바꾸고, `pipeline.py` 와 `features/` 를 얹은 뒤 돌린다.
 """
 
 import shutil
@@ -48,6 +48,18 @@ def build(example: Path, dest: Path) -> Path:
         encoding="utf-8")
 
     shutil.copyfile(example / "pipeline.py", pkg / "pipeline.py")
+
+    # 예제가 기능을 들고 오면 그것도 함께 옮긴다. features/ 는 통째로 갈아끼우지
+    # 않고 얹는다 — _shared.py 와 template/ 은 스캐폴드 것을 그대로 쓴다.
+    src_features = example / "features"
+    if src_features.is_dir():
+        for item in src_features.iterdir():
+            dest = pkg / "features" / item.name
+            if item.is_dir():
+                shutil.rmtree(dest, ignore_errors=True)
+                shutil.copytree(item, dest)
+            else:
+                shutil.copyfile(item, dest)
     return src
 
 

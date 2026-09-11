@@ -1,11 +1,12 @@
 # 예제 — 스캐폴드를 실제로 채우면 이렇게 된다
 
-`orders/` 는 **주문 로그**를 다루는 프로젝트로 스캐폴드를 채운 것이다. 고친 파일은
-둘뿐이고, 나머지는 손대지 않았다.
+`orders/` 는 **주문 로그**를 다루는 프로젝트로 스캐폴드를 채운 것이다. 손댄 곳은
+셋뿐이고, 나머지는 그대로다.
 
 ```
-src/<pkg>/schema.py   ← 표시된 블록만 orders/schema.py 로 갈아끼움
-src/<pkg>/pipeline.py    ← orders/pipeline.py 로 통째 교체
+src/<pkg>/schema.py          ← 표시된 블록만 orders/schema.py 로
+src/<pkg>/features/<기능>/   ← orders/features/ 의 둘을 얹음
+src/<pkg>/pipeline.py        ← 그 둘을 목록에 적음
 ```
 
 > 이 폴더는 `{AA}` 로 넘어가지 않는다(`export-ignore`). 개발 장비에서 배우는 용도고,
@@ -38,22 +39,55 @@ INPUT_SCHEMA: tuple[Field, ...] = (
   데이터고 밖으로 나올 수 없다 (C3)
 - **`coupon_code` 는 `used=False`** — 로그에는 있지만 이 파이프라인이 읽지 않는다
 
-## 2. 계산을 짠다 — `orders/pipeline.py`
+## 2. 기능을 만든다 — `orders/features/`
 
-```python
-def process_data(rows: list[dict]) -> dict:
-    ...
-    # 채널은 스키마의 allowed 에서 가져온다 — 코드에 박으면 스키마와 갈라진다
-    declared = next((f.allowed for f in INPUT_SCHEMA if f.name == "channel"), ())
-    for name in declared:
-        metrics[f"share_{name}"] = f"{channels[name] / len(rows):.3f}"
+**기능 하나가 폴더 하나다.** `template` 을 복사해서 시작한다.
+
+```bash
+cp -r src/<pkg>/features/template src/<pkg>/features/channel_mix
 ```
 
-채널 목록을 이 파일에 박지 않고 **스키마에서 읽는다.** 채널이 하나 늘면 고칠 곳이
-스키마 한 줄뿐이다 — 운영 환경에서는 코드를 못 고치므로(C2), 고칠 곳이 하나여야
-다음 사이클이 싸다.
+```python
+# features/channel_mix/__init__.py
+NAME = "channel"
 
-## 3. 돌린다
+def process_data(rows: list[dict]) -> dict:
+    ...
+    # 채널 목록을 여기 박지 않고 스키마에서 읽는다. 박으면 채널이 하나 늘 때
+    # 고칠 곳이 둘이 되고, 그러면 언젠가 한쪽만 고쳐진다.
+    declared = next((f.allowed for f in INPUT_SCHEMA if f.name == "channel"), ())
+    return {f"{NAME}_{name}": tally(counts[name], len(rows)) for name in declared}
+```
+
+**지표 이름 앞에 `NAME` 을 붙이는 것이 규칙이다.** 여럿의 결과가 한 리포트에 모이므로
+접두어가 없으면 겹친다.
+
+`tally()` 처럼 **둘 이상의 기능이 같이 쓰는 것**은 `features/_shared.py` 에 둔다.
+한 기능만 쓰는 것은 그 기능 폴더 안에 둔다 — `_shared` 에 올려두면 고칠 때 누가
+영향받는지 알 수 없다.
+
+## 3. 목록에 적는다 — `orders/pipeline.py`
+
+```python
+from .features import big_order, channel_mix
+
+FEATURES = (
+    channel_mix,
+    big_order,
+)
+```
+
+**기능을 늘려도 만질 곳은 둘뿐이다** — 폴더 하나, 목록 한 줄. 스키마·적재·리포트·
+진입점은 그대로다.
+
+이름이 겹치면 **죽는다.** 조용히 덮어쓰면 화면에는 마지막 기능의 숫자만 남고,
+덮였다는 사실이 어디에도 안 뜬다 — 사람은 틀린 숫자를 옳은 줄 알고 옮겨 적는다.
+
+```python
+raise KeyError(f"{feature.NAME} 의 지표 이름이 겹친다: {sorted(collided)}")
+```
+
+## 4. 돌린다
 
 스키마만 채우면 **가짜 데이터가 저절로 따라온다.** 데이터 파일을 만들지 않았는데도
 전 구간이 돈다.
@@ -72,21 +106,20 @@ input     : synthetic(n=1000, seed=7, mode=normal)
 shape     : 1,000 rows x 6 cols
 schema    : 6 ok / 0 MISMATCH
 metrics   :
-  orders           1,000
-  revenue          511,006,300
-  amount_mean      511,006
-  qty_mean         490.08
-  share_web        0.327
-  share_app        0.317
-  share_store      0.356
+  rows             1,000
+  channel_web      327 (32.70%)
+  channel_app      317 (31.70%)
+  channel_store    356 (35.60%)
+  big_order        529 (52.90%)
 runtime   : 0.0s, peak 0.02GB
 status    : OK
 =============================================
 ```
 
-종료 코드 `0`.
+종료 코드 `0`. 지표에 `channel_`·`big_order` 접두어가 붙은 것이 보인다 — 기능이 열
+개로 늘어도 이 규칙 때문에 겹치지 않는다.
 
-## 4. 스키마가 깨지면 이렇게 보인다
+## 5. 스키마가 깨지면 이렇게 보인다
 
 `--adversarial` 은 운영 환경에서 실제로 터졌던 사고 유형을 섞는다.
 
@@ -119,7 +152,7 @@ status    : CONTRACT MISMATCH
 있다는 걸 알 수 있다. 그러면 개발 장비로 돌아가 `schema.py` 의 `note` 에 적거나,
 `load.py` 에서 `strip()` 하도록 고친다.
 
-## 5. 안 읽는 필드는 위반이 아니다
+## 6. 안 읽는 필드는 위반이 아니다
 
 `coupon_code` 는 `used=False` 라서, 어긋나도 **노트로 내려가고 종료 코드는 `0`** 이다.
 
@@ -139,7 +172,9 @@ status    : OK
 ## 직접 해보려면
 
 ```bash
-cp examples/orders/pipeline.py src/core/pipeline.py
+cp -r examples/orders/features/channel_mix src/core/features/
+cp -r examples/orders/features/big_order   src/core/features/
+cp    examples/orders/pipeline.py          src/core/pipeline.py
 # src/core/schema.py 의 "갈아끼운다" 표시 블록을 examples/orders/schema.py 로 교체
 python src/run.py --dry-run --rows 1000 --seed 7
 ```
