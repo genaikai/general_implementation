@@ -43,6 +43,10 @@ INPUT_SCHEMA: tuple[Field, ...] = (
 
 **기능 하나가 폴더 하나다.** `template` 을 복사해서 시작한다.
 
+**기능은 판정만이 아니다.** 여기 둘도 검출이 아니다 — `channel_mix` 는 분포 **집계**고
+`big_order` 는 임계값 **계산**이다. 같은 입력을 읽어 지표를 내는 독립 단위면 무엇이든
+기능이다.
+
 ```bash
 cp -r src/<pkg>/features/template src/<pkg>/features/channel_mix
 ```

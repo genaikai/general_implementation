@@ -1,4 +1,4 @@
-"""판정들을 불러 한 장으로 합친다.
+"""기능들을 불러 한 장으로 합친다.
 
 기능 하나하나는 `features/<기능>/` 안에 있고, 이 파일은 그것들을 부르는 일만 한다.
 **목록이 여기 있는 것이 요점이다** — 기능이 늘어도 스키마·적재·리포트·진입점은
@@ -22,7 +22,7 @@ FEATURES = (
 
 
 def process_data(rows: list[dict]) -> dict:
-    """판정 전부를 돌리고 지표를 합친다."""
+    """기능 전부를 돌리고 지표를 합친다."""
     metrics = {"rows": f"{len(rows):,}"}
     for feature in FEATURES:
         result = feature.process_data(rows)
